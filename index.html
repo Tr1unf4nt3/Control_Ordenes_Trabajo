@@ -148,7 +148,7 @@
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
-        // ** CONFIGURACIÓN DE FIREBASE (PROPORCIONADA POR EL USUARIO) **
+        // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
           apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
           authDomain: "ordenestrabajo-39eab.firebaseapp.com",
@@ -176,7 +176,7 @@
         const NORMAL_USER = 'gerente';
         const NORMAL_PASS = '1nt3r**';
 
-        // Estructura inicial por defecto (Fecha de Creación se ELIMINÓ)
+        // Estructura inicial por defecto (Fecha Creación Orden Trabajo ELIMINADA del input)
         const DEFAULT_FORM_STRUCTURE = [
             { title: "Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
@@ -205,6 +205,7 @@
                 
                 // Cargar Órdenes de Trabajo
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
+                // Mapeamos los documentos de Firestore al array local, incluyendo el ID del documento
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             } catch (e) {
@@ -308,7 +309,7 @@
         }
         
         // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
-        // NOTA: Se actualizó el índice de los campos fijos en removeField() a 3.
+        // MODIFICACIÓN: Se añadió el tipo 'date-input' al editor.
 
         function renderFormEditor() {
             const editorDiv = document.getElementById('form-editor');
@@ -321,6 +322,7 @@
                     <h4>Sección ${secIndex + 1}: <input type="text" value="${section.title}" oninput="updateSectionTitle(${secIndex}, this.value)" style="width: 70%; display: inline;"></h4>
                     <button onclick="addField(${secIndex}, 'text')">➕ Agregar Campo de Texto</button>
                     <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
+                    <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
                     <hr>
                     <div id="fields-container-${secIndex}"></div>
                 `;
@@ -345,6 +347,7 @@
                             <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
                             <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto (Largo)</option>
                             <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable</option>
+                            <option value="date-input" ${field.type === 'date-input' ? 'selected' : ''}>Fecha (Calendario) 📅</option>
                         </select>
                         <label>Clasificación:</label>
                         <input type="checkbox" id="req-${secIndex}-${fieldIndex}" ${field.required ? 'checked' : ''} onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'required', this.checked)"> 
@@ -378,9 +381,10 @@
         }
 
         function addField(secIndex, type) {
+            // MODIFICACIÓN: Lógica para nombrar el nuevo campo de fecha
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
-                label: `Nuevo Campo ${type === 'select' ? 'Lista' : 'Texto'}`,
+                label: `Nuevo Campo ${type === 'select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : 'Texto')}`,
                 type: type,
                 required: false
             };
@@ -437,6 +441,10 @@
                             value = today;
                             inputHTML = `<input type="date" value="${value}" disabled>`;
                             break;
+                        // MODIFICACIÓN: Manejar el nuevo campo de fecha de entrada
+                        case 'date-input':
+                            inputHTML = `<input type="date" id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>`;
+                            break;
                         case 'text':
                         case 'number':
                             inputHTML = `<input type="${field.type}" id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>`;
@@ -474,10 +482,9 @@
                     let value;
                     if (field.type === 'ot_counter') value = otCounter.toString();
                     else if (field.type === 'date-auto') {
-                        // Usamos la fecha del sistema para la creación
+                        // Usamos la fecha del sistema para la creación y la guardamos con la clave para la tabla
                         value = new Date().toLocaleDateString('es-ES');
-                        // Agregamos un campo de fecha de creación para el PDF y la tabla
-                        if (field.label === 'Fecha Actual') orderData['Fecha Creación Orden Trabajo'] = value;
+                        orderData['Fecha Creación Orden Trabajo'] = value; 
                     }
                     else if (field.type === 'static') value = field.value;
                     else value = formData.get(field.id);
@@ -516,7 +523,8 @@
 
         function generatePDF(data) {
             const otNumber = data['Orden de Trabajo'];
-            const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'];
+            // Usamos la 'Fecha Creación Orden Trabajo' (que ahora viene de date-auto) para el nombre y el PDF
+            const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'] || 'N/A';
             const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
 
             // --- Contenido del Formulario (Página 1 y siguientes) ---
@@ -532,8 +540,8 @@
                     const label = field.label;
                     const value = data[label] || 'N/A';
                     
-                    // Asegurar que la Fecha de Creación también se muestre si no está como campo de entrada
-                    if (label === 'Fecha Actual' && data['Fecha Creación Orden Trabajo']) {
+                    // Mostrar la fecha de creación debajo de la fecha actual
+                    if (field.label === 'Fecha Actual' && data['Fecha Creación Orden Trabajo']) {
                          formContentHTML += `
                             <tr style="border-bottom: 1px solid #B0C4DE;">
                                 <td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Fecha Creación Orden Trabajo:</td>
@@ -596,7 +604,7 @@
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
                 row.insertCell().textContent = order['Título del Formulario'];
-                // Usamos la 'Fecha Creación Orden Trabajo' si existe, si no, usamos 'Fecha Actual'
+                // Usamos la 'Fecha Creación Orden Trabajo' (generada por date-auto)
                 const creationDate = order['Fecha Creación Orden Trabajo'] || order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
