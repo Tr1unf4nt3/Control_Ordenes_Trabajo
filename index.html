@@ -188,7 +188,7 @@
           projectId: "ordenestrabajo-39eab",
           storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
           messagingSenderId: "561184772303",
-          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
+          appId: "1:561184772303:web:765f5859b4b3a332e8277ba"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -202,7 +202,7 @@
         let formStructure = null; 
         let workOrders = []; 
         let otCounter = 1; 
-        let currentRole = null; // Almacena el rol del usuario logueado
+        let currentRole = null; 
 
         // Usuarios y Contraseñas
         const ADMIN_USER = 'admin';
@@ -438,8 +438,9 @@
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO (INCLUYE CÁLCULOS Y CONDICIONALES) ***
 
         function calculateTotal(prefix) {
-            const montoReal = parseFloat(document.getElementById(`${prefix}_monto_real`).value) || 0;
-            const incremento = parseFloat(document.getElementById(`${prefix}_incremento`).value) || 0;
+            // Asegura que los valores sean números, reemplazando comas por puntos si el usuario las usó
+            const montoReal = parseFloat(document.getElementById(`${prefix}_monto_real`).value.replace(',', '.')) || 0;
+            const incremento = parseFloat(document.getElementById(`${prefix}_incremento`).value.replace(',', '.')) || 0;
             const total = montoReal + incremento;
             
             // Actualiza el campo Total
@@ -468,19 +469,28 @@
             const nodeAccessButton = document.getElementById('check_node_acceso');
             const ispButton = document.getElementById('check_isp');
 
-            // Limpiar y resetear
+            // 1. Limpiar y resetear ambas secciones
             nodeAccessSection.style.display = 'none';
             ispSection.style.display = 'none';
             nodeAccessButton.classList.remove('active');
             ispButton.classList.remove('active');
             
-            // Deseleccionar checks internos y ocultar justificaciones si es necesario
+            // Resetear inputs y checks internos (Importante para evitar que se guarden datos ocultos)
             document.getElementById('node_acceso_no_cobro_check').checked = false;
             document.getElementById('isp_no_cobro_check').checked = false;
+            
+            // Resetear campos numéricos
+            document.getElementById('node_acceso_monto_real').value = '';
+            document.getElementById('node_acceso_incremento').value = '';
+            document.getElementById('isp_monto_real').value = '';
+            document.getElementById('isp_incremento').value = '';
+            
+            // Ocultar justificaciones
             toggleJustification('node_acceso');
             toggleJustification('isp');
 
 
+            // 2. Mostrar la sección seleccionada
             if (type === 'node_acceso') {
                 nodeAccessSection.style.display = 'block';
                 nodeAccessButton.classList.add('active');
@@ -489,7 +499,7 @@
                 ispButton.classList.add('active');
             }
             
-            // Forzar el cálculo inicial si se muestra la sección
+            // 3. Forzar el cálculo inicial (0.00) si se muestra la sección
             if (type) calculateTotal(type);
         }
 
@@ -558,6 +568,9 @@
                 </button>
                 <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
                     ¿La Construcción es de un ISP?
+                </button>
+                <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">
+                    ❌ Eliminar / Desmarcar Selección
                 </button>
             `;
             
@@ -643,6 +656,7 @@
                 // Asegurar que el total esté calculado antes de guardar
                 calculateTotal(prefix); 
 
+                // Usamos parseFloat y toFixed(2) para asegurar el formato de dinero, luego agregamos el símbolo.
                 orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(formData.get(`${prefix}_monto_real`)).toFixed(2) + ' $';
                 orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(formData.get(`${prefix}_incremento`)).toFixed(2) + ' $';
                 orderData[`${prefix} | Total Calculado`] = formData.get(`${prefix}_total_hidden`) + ' $';
