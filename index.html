@@ -57,6 +57,12 @@
             background-color: var(--color-white);
         }
 
+        /* Estilo para campos autollenados/deshabilitados */
+        input:disabled {
+            background-color: #f0f0f0; 
+            border: 1px dashed var(--color-secondary);
+        }
+
         .form-section {
             border: 1px solid var(--color-secondary);
             border-radius: 8px;
@@ -209,6 +215,27 @@
         const ADMIN_PASS = '4dm1n**';
         const NORMAL_USER = 'gerente';
         const NORMAL_PASS = '1nt3r**';
+
+        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS *** (NUEVO BLOQUE)
+        const CONTRATISTAS_DATA = {
+            // El administrador puede agregar, modificar o eliminar contratistas aquí
+            "Seleccione una Empresa": {
+                "Apellido y Nombre del Responsable": "",
+                "Rif": ""
+            },
+            "Contratista A C.A.": {
+                "Apellido y Nombre del Responsable": "Pérez Juan",
+                "Rif": "J-12345678-0"
+            },
+            "Servicios B, S.A.": {
+                "Apellido y Nombre del Responsable": "Gómez María",
+                "Rif": "G-98765432-1"
+            },
+            "Construcciones Zulia C.L.": {
+                "Apellido y Nombre del Responsable": "López Carlos",
+                "Rif": "C-11223344-5"
+            }
+        };
 
         // Estructura inicial por defecto
         const DEFAULT_FORM_STRUCTURE = [
@@ -377,15 +404,19 @@
                             <option value="text" ${field.type === 'text' ? 'selected' : ''}>Texto (Corto)</option>
                             <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
                             <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto (Largo)</option>
-                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable</option>
+                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable (Simple)</option>
+                            <option value="autofill-select" ${field.type === 'autofill-select' ? 'selected' : ''}>Lista (Autollenado Contratista) 📝</option>
                             <option value="date-input" ${field.type === 'date-input' ? 'selected' : ''}>Fecha (Calendario) 📅</option>
                         </select>
                         <label>Clasificación:</label>
                         <input type="checkbox" id="req-${secIndex}-${fieldIndex}" ${field.required ? 'checked' : ''} onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'required', this.checked)"> 
                         <label for="req-${secIndex}-${fieldIndex}" style="display: inline-block; font-weight: normal;">Obligatorio</label>
                         
-                        <div id="select-options-${secIndex}-${fieldIndex}" style="margin-top: 10px; ${field.type !== 'select' ? 'display: none;' : ''}">
-                            <strong>Opciones de Lista (separar por coma):</strong>
+                        <div id="select-options-${secIndex}-${fieldIndex}" style="margin-top: 10px; ${field.type !== 'select' && field.type !== 'autofill-select' ? 'display: none;' : ''}">
+                            <strong>Opciones de Lista (solo visible si es 'Select' o 'Autofill-Select'). </strong>
+                            ${field.type === 'autofill-select' ? 
+                                '<p style="color: var(--color-error);">⚠️ **Autollenado:** Las opciones se toman de `CONTRATISTAS_DATA` y anulan esta lista.</p>' : ''
+                            }
                             <input type="text" value="${(field.options || []).join(', ')}" oninput="updateSelectOptions(${secIndex}, ${fieldIndex}, this.value)">
                         </div>
                         <button onclick="removeField(${secIndex}, ${fieldIndex})" style="background-color: var(--color-error); color: var(--color-white);">🗑️ Eliminar Campo</button>
@@ -400,7 +431,7 @@
         function updateFieldProperty(secIndex, fieldIndex, prop, value) {
             formStructure[secIndex].fields[fieldIndex][prop] = value;
             if (prop === 'type') {
-                if (value === 'select' && !formStructure[secIndex].fields[fieldIndex].options) {
+                if ((value === 'select' || value === 'autofill-select') && !formStructure[secIndex].fields[fieldIndex].options) {
                     formStructure[secIndex].fields[fieldIndex].options = ['Opción A', 'Opción B'];
                 }
                 renderFormEditor();
@@ -414,11 +445,11 @@
         function addField(secIndex, type) {
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
-                label: `Nuevo Campo ${type === 'select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : 'Texto')}`,
+                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : 'Texto')}`,
                 type: type,
                 required: false
             };
-            if (type === 'select') newField.options = ['Opción A', 'Opción B'];
+            if (type === 'select' || type === 'autofill-select') newField.options = ['Opción A', 'Opción B'];
             formStructure[secIndex].fields.push(newField);
             renderFormEditor();
         }
@@ -436,6 +467,37 @@
 
 
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO (INCLUYE CÁLCULOS Y CONDICIONALES) ***
+
+        /**
+         * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
+         * Se basa en que los campos a autocompletar tengan el label exacto que se usa en CONTRATISTAS_DATA.
+         */
+        function autofillContratistaData(selectElement) {
+            const selectedCompanyName = selectElement.value;
+            const data = CONTRATISTAS_DATA[selectedCompanyName];
+            
+            // Si no hay datos (ej. "Seleccione una Empresa"), limpia los campos
+            if (!data) {
+                document.getElementById('Apellido y Nombre del Responsable').value = '';
+                document.getElementById('Rif').value = '';
+                return;
+            }
+
+            // Asumiendo que los campos Responsable y Rif existen y sus IDs son sus propios labels (para simplicidad)
+            const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
+            const rifField = document.getElementById('Rif');
+
+            if (responsibleField && data["Apellido y Nombre del Responsable"] !== undefined) {
+                responsibleField.value = data["Apellido y Nombre del Responsable"];
+            }
+            if (rifField && data["Rif"] !== undefined) {
+                rifField.value = data["Rif"];
+            }
+
+            // Opcional: Si el campo de la empresa tiene un label "Nombre de la Empresa", puedes deshabilitarlo
+            // para que no se envíen datos duplicados en el formData si usas el ID en lugar del Label.
+        }
+
 
         function calculateTotal(prefix) {
             // Asegura que los valores sean números, reemplazando comas por puntos si el usuario las usó
@@ -456,7 +518,8 @@
             
             if (isChecked) {
                 justificationDiv.style.display = 'block';
-                document.getElementById(`${prefix}_justificacion`).required = true;
+                // Solo hacemos que el campo sea obligatorio si se marca el check
+                document.getElementById(`${prefix}_justificacion`).required = true; 
             } else {
                 justificationDiv.style.display = 'none';
                 document.getElementById(`${prefix}_justificacion`).required = false;
@@ -479,7 +542,7 @@
             document.getElementById('node_acceso_no_cobro_check').checked = false;
             document.getElementById('isp_no_cobro_check').checked = false;
             
-            // Resetear campos numéricos
+            // Resetear campos numéricos (usando '' en lugar de 0 para que no sean requeridos si están ocultos)
             document.getElementById('node_acceso_monto_real').value = '';
             document.getElementById('node_acceso_incremento').value = '';
             document.getElementById('isp_monto_real').value = '';
@@ -524,6 +587,25 @@
                     const requiredStar = field.required ? '<span style="color: var(--color-error); margin-left: 5px;">*</span>' : '';
                     let inputHTML = '';
                     let value = '';
+                    let isDisabled = '';
+                    let onChangeEvent = '';
+                    let isAutofillField = false;
+
+                    // Lógica para deshabilitar campos de autollenado
+                    if (section.title === 'Información de la Contratista') {
+                        // Asumiendo que 'Nombre de la Empresa' será la lista y el resto los autollenados
+                        const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
+                        if (autofillKeys.includes(field.label)) {
+                            isDisabled = 'disabled';
+                            isAutofillField = true;
+                        } else if (field.type === 'autofill-select') {
+                            // Este es el campo que activa el autollenado
+                            onChangeEvent = `onchange="autofillContratistaData(this)"`;
+                        }
+                    }
+
+                    // El ID se convierte en el LABEL para que la función autofill pueda identificarlos.
+                    const fieldId = isAutofillField ? field.label : field.id; 
 
                     switch (field.type) {
                         case 'static':
@@ -539,23 +621,29 @@
                             inputHTML = `<input type="date" value="${value}" disabled>`;
                             break;
                         case 'date-input':
-                            inputHTML = `<input type="date" id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>`;
+                            inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}>`;
                             break;
                         case 'text':
                         case 'number':
-                            inputHTML = `<input type="${field.type}" id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>`;
+                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}>`;
                             break;
                         case 'textarea':
-                            inputHTML = `<textarea id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}></textarea>`;
+                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}></textarea>`;
                             break;
                         case 'select':
-                            inputHTML = `<select id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled} ${onChangeEvent}>
                                 ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            </select>`;
+                            break;
+                        case 'autofill-select': // NUEVO TIPO DE LISTA
+                            const optionsHTML = Object.keys(CONTRATISTAS_DATA).map(key => `<option value="${key}">${key}</option>`).join('');
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled} ${onChangeEvent}>
+                                ${optionsHTML}
                             </select>`;
                             break;
                     }
 
-                    sectionDiv.innerHTML += `<p><label for="${field.id}">${field.label}${requiredStar}:</label>${inputHTML}</p>`;
+                    sectionDiv.innerHTML += `<p><label for="${fieldId}">${field.label}${requiredStar}:</label>${inputHTML}</p>`;
                 });
                 formElement.appendChild(sectionDiv);
             });
@@ -564,10 +652,10 @@
             formElement.innerHTML += `
                 <h4>Tipo de Construcción (Selección Única)</h4>
                 <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
-                    ¿La Construcción es de un Nodo de Acceso?
+                    La Construcción es de un Nodo de Acceso
                 </button>
                 <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
-                    ¿La Construcción es de un ISP?
+                    La Construcción es de un ISP
                 </button>
                 <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">
                     ❌ Eliminar / Desmarcar Selección
@@ -582,10 +670,15 @@
             
             // Inicializar las secciones ocultas
             toggleConditionalSection(null);
+            
+            // Inicializar autollenado con el valor por defecto
+            const defaultSelect = document.getElementById('Seleccione una Empresa'); // Asumiendo el label es la ID
+            if (defaultSelect) autofillContratistaData(defaultSelect);
         }
 
         function renderConditionalSection(prefix, title) {
             // Se usa el evento oninput en los campos numéricos para forzar el cálculo al escribir
+            // NOTA: Se eliminan los signos de interrogación del check.
             return `
                 <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
                     <h4>${title}</h4>
@@ -608,7 +701,7 @@
 
                     <div style="margin-top: 20px;">
                         <input type="checkbox" id="${prefix}_no_cobro_check" name="${prefix}_no_cobro_check" onclick="toggleJustification('${prefix}')">
-                        <label for="${prefix}_no_cobro_check" style="display: inline; font-weight: bold;">¿No se cobra el servicio?</label>
+                        <label for="${prefix}_no_cobro_check" style="display: inline; font-weight: bold;">No se cobra el servicio</label>
                     </div>
 
                     <div id="${prefix}_justificacion_div" style="display: none; margin-top: 15px;">
@@ -635,20 +728,28 @@
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
+                    let fieldId = (section.title === 'Información de la Contratista' && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                ? field.label 
+                                : field.id;
+
                     if (field.type === 'ot_counter') value = otCounter.toString();
                     else if (field.type === 'date-auto') {
                         value = new Date().toLocaleDateString('es-ES');
                         orderData['Fecha Creación Orden Trabajo'] = value; 
                     }
                     else if (field.type === 'static') value = field.value;
-                    else value = formData.get(field.id);
+                    else {
+                        // Capturar el valor. Para los campos deshabilitados (autollenados), usamos su .value
+                        const inputElement = document.getElementById(fieldId);
+                        value = inputElement ? inputElement.value : formData.get(fieldId);
+                    }
                     
                     orderData[field.label] = value || 'N/A';
                 });
             });
             
             // 2. Recopilar datos de la sección condicional seleccionada
-            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim().replace('¿', '').replace('?', '') : 'Ninguno';
+            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
@@ -660,6 +761,7 @@
                 orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(formData.get(`${prefix}_monto_real`)).toFixed(2) + ' $';
                 orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(formData.get(`${prefix}_incremento`)).toFixed(2) + ' $';
                 orderData[`${prefix} | Total Calculado`] = formData.get(`${prefix}_total_hidden`) + ' $';
+                // El campo no tiene value si no está marcado, por lo que comparamos con 'on'
                 orderData[`${prefix} | No se cobra el servicio`] = formData.get(`${prefix}_no_cobro_check`) === 'on' ? 'Sí' : 'No';
                 
                 if (orderData[`${prefix} | No se cobra el servicio`] === 'Sí') {
@@ -744,7 +846,7 @@
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Monto Real Factibilidad:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Monto Real Factibilidad`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Incremento VGT y Otros:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Incremento VGT y Otros`]}</td></tr>
                     <tr style="font-weight: bold;"><td style="width: 35%; padding: 8px; background-color: #B0C4DE;">TOTAL CALCULADO:</td><td style="width: 65%; padding: 8px; background-color: #ADD8E6;">${data[`${prefix} | Total Calculado`]}</td></tr>
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">¿No se cobra el servicio?:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | No se cobra el servicio`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">No se cobra el servicio:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | No se cobra el servicio`]}</td></tr>
                 `;
                 if (data[`${prefix} | No se cobra el servicio`] === 'Sí') {
                     formContentHTML += `
