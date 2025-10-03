@@ -65,6 +65,24 @@
             background-color: #f7fbff;
         }
 
+        /* Contenedor Flex para Campos de Cálculo */
+        .calculation-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .calculation-group label { width: 100%; }
+
+        /* Estilo para el campo Total calculado */
+        .total-display {
+            background-color: #e0f7fa; /* Un color distinto para el total */
+            font-weight: bold;
+            text-align: right;
+            border: 1px dashed var(--color-accent);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
         button {
             background-color: var(--color-accent);
             color: var(--color-text);
@@ -79,6 +97,21 @@
         button:hover {
             background-color: var(--color-primary);
         }
+        
+        /* Botones de Check Condicional */
+        .conditional-check {
+            background-color: var(--color-secondary);
+            color: var(--color-white);
+            font-weight: bold;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: block;
+            text-align: left;
+        }
+        .conditional-check.active {
+            background-color: var(--color-success);
+        }
+
 
         /* Layout de Pestañas */
         .tab { overflow: hidden; border-bottom: 1px solid var(--color-secondary); margin-bottom: 20px; }
@@ -169,6 +202,7 @@
         let formStructure = null; 
         let workOrders = []; 
         let otCounter = 1; 
+        let currentRole = null; // Almacena el rol del usuario logueado
 
         // Usuarios y Contraseñas
         const ADMIN_USER = 'admin';
@@ -176,7 +210,7 @@
         const NORMAL_USER = 'gerente';
         const NORMAL_PASS = '1nt3r**';
 
-        // Estructura inicial por defecto (Fecha Creación Orden Trabajo ELIMINADA del input)
+        // Estructura inicial por defecto
         const DEFAULT_FORM_STRUCTURE = [
             { title: "Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
@@ -205,7 +239,6 @@
                 
                 // Cargar Órdenes de Trabajo
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
-                // Mapeamos los documentos de Firestore al array local, incluyendo el ID del documento
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             } catch (e) {
@@ -216,7 +249,6 @@
         
         async function saveFormStructure(initial = false) {
             try {
-                // Guarda la estructura del formulario y el contador OT actualizados
                 await CONFIG_COLLECTION.doc("systemConfig").set({
                     formStructure: formStructure,
                     otCounter: otCounter
@@ -248,6 +280,7 @@
             }
 
             if (role) {
+                currentRole = role; // Almacena el rol globalmente
                 sessionStorage.setItem('userRole', role);
                 document.getElementById('login-view').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
@@ -259,6 +292,7 @@
 
         function logout() {
             sessionStorage.removeItem('userRole');
+            currentRole = null;
             document.getElementById('main-app').style.display = 'none';
             document.getElementById('login-view').style.display = 'block';
             document.getElementById('username').value = '';
@@ -268,7 +302,6 @@
         async function initializeApp(role) {
             document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
 
-            // CARGA DE DATOS CENTRALIZADA
             await loadInitialData(); 
             
             if (role === 'admin') {
@@ -305,11 +338,10 @@
 
             if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
             else if (tabName === 'view-orders') renderOrdersTable();
-            else if (tabName === 'edit-form' && sessionStorage.getItem('userRole') === 'admin' && formStructure) renderFormEditor();
+            else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
         
         // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
-        // MODIFICACIÓN: Se añadió el tipo 'date-input' al editor.
 
         function renderFormEditor() {
             const editorDiv = document.getElementById('form-editor');
@@ -330,7 +362,6 @@
 
                 const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
                 section.fields.forEach((field, fieldIndex) => {
-                    // Solo los campos 'static', 'ot_counter' y 'date-auto' son fijos.
                     if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') {
                         fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
                         return;
@@ -381,7 +412,6 @@
         }
 
         function addField(secIndex, type) {
-            // MODIFICACIÓN: Lógica para nombrar el nuevo campo de fecha
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
                 label: `Nuevo Campo ${type === 'select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : 'Texto')}`,
@@ -394,7 +424,6 @@
         }
 
         function removeField(secIndex, fieldIndex) {
-            // Ahora solo hay 3 campos fijos en la primera sección
             if (secIndex === 0 && fieldIndex < 3) {
                 alert("🚫 No se pueden eliminar los campos obligatorios y fijos de la primera sección.");
                 return;
@@ -406,7 +435,64 @@
         }
 
 
-        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
+        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO (INCLUYE CÁLCULOS Y CONDICIONALES) ***
+
+        function calculateTotal(prefix) {
+            const montoReal = parseFloat(document.getElementById(`${prefix}_monto_real`).value) || 0;
+            const incremento = parseFloat(document.getElementById(`${prefix}_incremento`).value) || 0;
+            const total = montoReal + incremento;
+            
+            // Actualiza el campo Total
+            document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2) + ' $';
+            
+            // Almacena el valor Total real en un campo hidden para capturarlo al guardar
+            document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
+        }
+
+        function toggleJustification(prefix) {
+            const isChecked = document.getElementById(`${prefix}_no_cobro_check`).checked;
+            const justificationDiv = document.getElementById(`${prefix}_justificacion_div`);
+            
+            if (isChecked) {
+                justificationDiv.style.display = 'block';
+                document.getElementById(`${prefix}_justificacion`).required = true;
+            } else {
+                justificationDiv.style.display = 'none';
+                document.getElementById(`${prefix}_justificacion`).required = false;
+            }
+        }
+
+        function toggleConditionalSection(type) {
+            const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
+            const ispSection = document.getElementById('conditional_isp_section');
+            const nodeAccessButton = document.getElementById('check_node_acceso');
+            const ispButton = document.getElementById('check_isp');
+
+            // Limpiar y resetear
+            nodeAccessSection.style.display = 'none';
+            ispSection.style.display = 'none';
+            nodeAccessButton.classList.remove('active');
+            ispButton.classList.remove('active');
+            
+            // Deseleccionar checks internos y ocultar justificaciones si es necesario
+            document.getElementById('node_acceso_no_cobro_check').checked = false;
+            document.getElementById('isp_no_cobro_check').checked = false;
+            toggleJustification('node_acceso');
+            toggleJustification('isp');
+
+
+            if (type === 'node_acceso') {
+                nodeAccessSection.style.display = 'block';
+                nodeAccessButton.classList.add('active');
+            } else if (type === 'isp') {
+                ispSection.style.display = 'block';
+                ispButton.classList.add('active');
+            }
+            
+            // Forzar el cálculo inicial si se muestra la sección
+            if (type) calculateTotal(type);
+        }
+
 
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
@@ -417,7 +503,8 @@
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
                  return;
             }
-
+            
+            // Renderizar secciones dinámicas
             formStructure.forEach(section => {
                 const sectionDiv = document.createElement('div');
                 sectionDiv.className = 'form-section';
@@ -441,7 +528,6 @@
                             value = today;
                             inputHTML = `<input type="date" value="${value}" disabled>`;
                             break;
-                        // MODIFICACIÓN: Manejar el nuevo campo de fecha de entrada
                         case 'date-input':
                             inputHTML = `<input type="date" id="${field.id}" name="${field.id}" ${field.required ? 'required' : ''}>`;
                             break;
@@ -463,6 +549,61 @@
                 });
                 formElement.appendChild(sectionDiv);
             });
+            
+            // AÑADIR BOTONES DE CHECK CONDICIONAL AL FINAL
+            formElement.innerHTML += `
+                <h4>Tipo de Construcción (Selección Única)</h4>
+                <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
+                    ¿La Construcción es de un Nodo de Acceso?
+                </button>
+                <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
+                    ¿La Construcción es de un ISP?
+                </button>
+            `;
+            
+            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN NODO DE ACCESO ---
+            formElement.innerHTML += renderConditionalSection('node_acceso', 'Construcción Nodo de Acceso');
+
+            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
+            formElement.innerHTML += renderConditionalSection('isp', 'Construcción ISP');
+            
+            // Inicializar las secciones ocultas
+            toggleConditionalSection(null);
+        }
+
+        function renderConditionalSection(prefix, title) {
+            // Se usa el evento oninput en los campos numéricos para forzar el cálculo al escribir
+            return `
+                <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
+                    <h4>${title}</h4>
+                    
+                    <p><label for="${prefix}_monto_real">Monto Real de la Factibilidad (*):</label></p>
+                    <div class="calculation-group">
+                        <input type="number" step="0.01" min="0" id="${prefix}_monto_real" name="${prefix}_monto_real" placeholder="0.00" oninput="calculateTotal('${prefix}')" required>
+                        <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
+                    </div>
+
+                    <p><label for="${prefix}_incremento">Incremento de Pagos VGT y Otros Servicios (*):</label></p>
+                    <div class="calculation-group">
+                        <input type="number" step="0.01" min="0" id="${prefix}_incremento" name="${prefix}_incremento" placeholder="0.00" oninput="calculateTotal('${prefix}')" required>
+                        <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
+                        
+                        <label>Total:</label>
+                        <div id="${prefix}_total_display" class="total-display" style="width: 150px;">0.00 $</div>
+                        <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <input type="checkbox" id="${prefix}_no_cobro_check" name="${prefix}_no_cobro_check" onclick="toggleJustification('${prefix}')">
+                        <label for="${prefix}_no_cobro_check" style="display: inline; font-weight: bold;">¿No se cobra el servicio?</label>
+                    </div>
+
+                    <div id="${prefix}_justificacion_div" style="display: none; margin-top: 15px;">
+                        <p><label for="${prefix}_justificacion">Justificación (*):</label></p>
+                        <textarea id="${prefix}_justificacion" name="${prefix}_justificacion" placeholder="Escriba la justificación aquí..."></textarea>
+                    </div>
+                </div>
+            `;
         }
 
         async function generateWorkOrder() {
@@ -475,14 +616,14 @@
 
             const formData = new FormData(form);
             const orderData = {};
+            const selectedType = document.querySelector('.conditional-check.active');
 
-            // 1. Recopilar datos
+            // 1. Recopilar datos estáticos y dinámicos del formulario principal
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
                     if (field.type === 'ot_counter') value = otCounter.toString();
                     else if (field.type === 'date-auto') {
-                        // Usamos la fecha del sistema para la creación y la guardamos con la clave para la tabla
                         value = new Date().toLocaleDateString('es-ES');
                         orderData['Fecha Creación Orden Trabajo'] = value; 
                     }
@@ -492,25 +633,45 @@
                     orderData[field.label] = value || 'N/A';
                 });
             });
+            
+            // 2. Recopilar datos de la sección condicional seleccionada
+            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim().replace('¿', '').replace('?', '') : 'Ninguno';
 
-            // 2. **GUARDAR EN FIREBASE**
+            if (selectedType) {
+                const prefix = selectedType.id.replace('check_', '');
+                
+                // Asegurar que el total esté calculado antes de guardar
+                calculateTotal(prefix); 
+
+                orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(formData.get(`${prefix}_monto_real`)).toFixed(2) + ' $';
+                orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(formData.get(`${prefix}_incremento`)).toFixed(2) + ' $';
+                orderData[`${prefix} | Total Calculado`] = formData.get(`${prefix}_total_hidden`) + ' $';
+                orderData[`${prefix} | No se cobra el servicio`] = formData.get(`${prefix}_no_cobro_check`) === 'on' ? 'Sí' : 'No';
+                
+                if (orderData[`${prefix} | No se cobra el servicio`] === 'Sí') {
+                    orderData[`${prefix} | Justificación No Cobro`] = formData.get(`${prefix}_justificacion`);
+                }
+            }
+
+
+            // 3. **GUARDAR EN FIREBASE**
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
-                // 3. Actualizar array local y contador
+                // 4. Actualizar array local y contador
                 orderData.id = docRef.id; 
                 workOrders.push(orderData);
                 otCounter++;
                 
-                // 4. Guardar la nueva estructura/contador
+                // 5. Guardar la nueva estructura/contador
                 await saveFormStructure(false); 
 
-                // 5. Generar PDF
+                // 6. Generar PDF
                 generatePDF(orderData);
 
-                // 6. Reiniciar UI
+                // 7. Reiniciar UI
                 form.reset();
-                renderWorkOrderForm();
+                renderWorkOrderForm(); // Vuelve a renderizar para limpiar estados
                 renderOrdersTable(); 
                 
             } catch (e) {
@@ -523,7 +684,6 @@
 
         function generatePDF(data) {
             const otNumber = data['Orden de Trabajo'];
-            // Usamos la 'Fecha Creación Orden Trabajo' (que ahora viene de date-auto) para el nombre y el PDF
             const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'] || 'N/A';
             const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
 
@@ -533,15 +693,14 @@
                     <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px;">${data['Título del Formulario']} Nro. ${otNumber}</h1>
             `;
             
-            // Contenido del Formulario por Secciones
+            // Contenido del Formulario por Secciones (Dinámicas)
             formStructure.forEach(section => {
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
                     const value = data[label] || 'N/A';
                     
-                    // Mostrar la fecha de creación debajo de la fecha actual
-                    if (field.label === 'Fecha Actual' && data['Fecha Creación Orden Trabajo']) {
+                    if (label === 'Fecha Actual' && data['Fecha Creación Orden Trabajo']) {
                          formContentHTML += `
                             <tr style="border-bottom: 1px solid #B0C4DE;">
                                 <td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Fecha Creación Orden Trabajo:</td>
@@ -559,6 +718,30 @@
                 });
                 formContentHTML += '</table>';
             });
+            
+            // Contenido de las Secciones Condicionales (Fijas)
+            const type = data['Tipo de Construcción Seleccionada'];
+            if (type && type !== 'Ninguno') {
+                const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
+                
+                formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">Datos Condicionales: ${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
+
+                formContentHTML += `
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Monto Real Factibilidad:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Monto Real Factibilidad`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Incremento VGT y Otros:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Incremento VGT y Otros`]}</td></tr>
+                    <tr style="font-weight: bold;"><td style="width: 35%; padding: 8px; background-color: #B0C4DE;">TOTAL CALCULADO:</td><td style="width: 65%; padding: 8px; background-color: #ADD8E6;">${data[`${prefix} | Total Calculado`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">¿No se cobra el servicio?:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | No se cobra el servicio`]}</td></tr>
+                `;
+                if (data[`${prefix} | No se cobra el servicio`] === 'Sí') {
+                    formContentHTML += `
+                        <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Justificación No Cobro:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Justificación No Cobro`]}</td></tr>
+                    `;
+                }
+
+                formContentHTML += '</table>';
+            }
+
+
             formContentHTML += '</div>';
             
             // --- Contenido de Firmas (Nueva Página con salto forzado) ---
@@ -604,11 +787,9 @@
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
                 row.insertCell().textContent = order['Título del Formulario'];
-                // Usamos la 'Fecha Creación Orden Trabajo' (generada por date-auto)
                 const creationDate = order['Fecha Creación Orden Trabajo'] || order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
-                // Botón de Descarga que usa el ID de Firestore (order.id)
                 const actionCell = row.insertCell();
                 const downloadBtn = document.createElement('button');
                 downloadBtn.textContent = '⬇️ PDF';
