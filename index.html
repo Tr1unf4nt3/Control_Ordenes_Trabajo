@@ -63,6 +63,11 @@
             border: 1px dashed var(--color-secondary);
         }
 
+        /* Estilo de validación (el navegador se encarga de lo básico, pero esto ayuda) */
+        input:invalid:not(:placeholder-shown), select:invalid:not(:placeholder-shown), textarea:invalid:not(:placeholder-shown) {
+            border: 2px solid var(--color-error);
+        }
+
         .form-section {
             border: 1px solid var(--color-secondary);
             border-radius: 8px;
@@ -216,7 +221,7 @@
         const NORMAL_USER = 'gerente';
         const NORMAL_PASS = '1nt3r**';
 
-        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS *** (NUEVO BLOQUE)
+        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
         const CONTRATISTAS_DATA = {
             // El administrador puede agregar, modificar o eliminar contratistas aquí
             "Seleccione una Empresa": {
@@ -470,7 +475,6 @@
 
         /**
          * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
-         * Se basa en que los campos a autocompletar tengan el label exacto que se usa en CONTRATISTAS_DATA.
          */
         function autofillContratistaData(selectElement) {
             const selectedCompanyName = selectElement.value;
@@ -493,9 +497,6 @@
             if (rifField && data["Rif"] !== undefined) {
                 rifField.value = data["Rif"];
             }
-
-            // Opcional: Si el campo de la empresa tiene un label "Nombre de la Empresa", puedes deshabilitarlo
-            // para que no se envíen datos duplicados en el formData si usas el ID en lugar del Label.
         }
 
 
@@ -593,7 +594,7 @@
 
                     // Lógica para deshabilitar campos de autollenado
                     if (section.title === 'Información de la Contratista') {
-                        // Asumiendo que 'Nombre de la Empresa' será la lista y el resto los autollenados
+                        // Los campos autollenados deben usar su label como ID
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
                         if (autofillKeys.includes(field.label)) {
                             isDisabled = 'disabled';
@@ -606,6 +607,10 @@
 
                     // El ID se convierte en el LABEL para que la función autofill pueda identificarlos.
                     const fieldId = isAutofillField ? field.label : field.id; 
+                    
+                    // Tratamiento de REQUIRED para los campos NO fijos/estáticos
+                    const requiredAttribute = field.required && field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' ? 'required' : '';
+
 
                     switch (field.type) {
                         case 'static':
@@ -621,23 +626,23 @@
                             inputHTML = `<input type="date" value="${value}" disabled>`;
                             break;
                         case 'date-input':
-                            inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}>`;
+                            inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'text':
                         case 'number':
-                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}>`;
+                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'textarea':
-                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled}></textarea>`;
+                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}></textarea>`;
                             break;
                         case 'select':
-                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled} ${onChangeEvent}>
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
                                 ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                             </select>`;
                             break;
                         case 'autofill-select': // NUEVO TIPO DE LISTA
                             const optionsHTML = Object.keys(CONTRATISTAS_DATA).map(key => `<option value="${key}">${key}</option>`).join('');
-                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${field.required ? 'required' : ''} ${isDisabled} ${onChangeEvent}>
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
                                 ${optionsHTML}
                             </select>`;
                             break;
@@ -672,26 +677,27 @@
             toggleConditionalSection(null);
             
             // Inicializar autollenado con el valor por defecto
-            const defaultSelect = document.getElementById('Seleccione una Empresa'); // Asumiendo el label es la ID
-            if (defaultSelect) autofillContratistaData(defaultSelect);
+            const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
+            autofillSelects.forEach(select => autofillContratistaData(select));
         }
 
         function renderConditionalSection(prefix, title) {
-            // Se usa el evento oninput en los campos numéricos para forzar el cálculo al escribir
-            // NOTA: Se eliminan los signos de interrogación del check.
+            // NOTA: Se ha eliminado el 'required' de los campos numéricos en las secciones condicionales.
+            // La validación de estos campos se realiza manualmente en generateWorkOrder() para que solo
+            // sean obligatorios si la sección está ACTIVA.
             return `
                 <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
                     <h4>${title}</h4>
                     
                     <p><label for="${prefix}_monto_real">Monto Real de la Factibilidad (*):</label></p>
                     <div class="calculation-group">
-                        <input type="number" step="0.01" min="0" id="${prefix}_monto_real" name="${prefix}_monto_real" placeholder="0.00" oninput="calculateTotal('${prefix}')" required>
+                        <input type="number" step="0.01" min="0" id="${prefix}_monto_real" name="${prefix}_monto_real" placeholder="0.00" oninput="calculateTotal('${prefix}')">
                         <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
                     </div>
 
                     <p><label for="${prefix}_incremento">Incremento de Pagos VGT y Otros Servicios (*):</label></p>
                     <div class="calculation-group">
-                        <input type="number" step="0.01" min="0" id="${prefix}_incremento" name="${prefix}_incremento" placeholder="0.00" oninput="calculateTotal('${prefix}')" required>
+                        <input type="number" step="0.01" min="0" id="${prefix}_incremento" name="${prefix}_incremento" placeholder="0.00" oninput="calculateTotal('${prefix}')">
                         <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
                         
                         <label>Total:</label>
@@ -714,17 +720,68 @@
 
         async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
-            if (!form.checkValidity()) {
-                alert('⚠️ Por favor, complete todos los campos obligatorios marcados con (*).');
-                form.reportValidity();
+            const selectedType = document.querySelector('.conditional-check.active');
+            let firstInvalidField = null;
+
+            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS
+            for (const section of formStructure) {
+                for (const field of section.fields) {
+                    // Los campos fijos y estáticos no requieren validación manual
+                    if (!field.required || field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') continue;
+
+                    let fieldId = (section.title === 'Información de la Contratista' && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                ? field.label 
+                                : field.id;
+                    
+                    const inputElement = document.getElementById(fieldId);
+
+                    // La validación de HTML5 se encarga de la mayoría, pero la llamamos explícitamente.
+                    if (inputElement && !inputElement.checkValidity()) {
+                        firstInvalidField = inputElement;
+                        break; 
+                    }
+                }
+                if (firstInvalidField) break; 
+            }
+
+            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
+            if (!firstInvalidField && selectedType) {
+                const prefix = selectedType.id.replace('check_', '');
+                const montoReal = document.getElementById(`${prefix}_monto_real`);
+                const incremento = document.getElementById(`${prefix}_incremento`);
+                const justificacion = document.getElementById(`${prefix}_justificacion`);
+
+                // Validar Monto Real
+                if (!montoReal.value || parseFloat(montoReal.value.replace(',', '.')) < 0) {
+                    firstInvalidField = montoReal;
+                }
+                // Validar Incremento
+                else if (!incremento.value || parseFloat(incremento.value.replace(',', '.')) < 0) {
+                    firstInvalidField = incremento;
+                }
+                // Validar Justificación si está marcada
+                else if (justificacion.required && !justificacion.value.trim()) {
+                    firstInvalidField = justificacion;
+                }
+            }
+
+            // 3. MANEJO DEL ERROR
+            if (firstInvalidField) {
+                alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
+                
+                // Mostrar la burbuja de error nativa del navegador y hacer scroll
+                firstInvalidField.reportValidity();
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidField.focus();
                 return;
             }
 
+            // Si pasa la validación, procedemos a guardar y generar PDF
+
             const formData = new FormData(form);
             const orderData = {};
-            const selectedType = document.querySelector('.conditional-check.active');
-
-            // 1. Recopilar datos estáticos y dinámicos del formulario principal
+            
+            // 4. Recopilar datos estáticos y dinámicos del formulario principal
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -739,7 +796,6 @@
                     }
                     else if (field.type === 'static') value = field.value;
                     else {
-                        // Capturar el valor. Para los campos deshabilitados (autollenados), usamos su .value
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
@@ -748,20 +804,17 @@
                 });
             });
             
-            // 2. Recopilar datos de la sección condicional seleccionada
+            // 5. Recopilar datos de la sección condicional seleccionada
             orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 
-                // Asegurar que el total esté calculado antes de guardar
                 calculateTotal(prefix); 
 
-                // Usamos parseFloat y toFixed(2) para asegurar el formato de dinero, luego agregamos el símbolo.
-                orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(formData.get(`${prefix}_monto_real`)).toFixed(2) + ' $';
-                orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(formData.get(`${prefix}_incremento`)).toFixed(2) + ' $';
+                orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(document.getElementById(`${prefix}_monto_real`).value.replace(',', '.')).toFixed(2) + ' $';
+                orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(document.getElementById(`${prefix}_incremento`).value.replace(',', '.')).toFixed(2) + ' $';
                 orderData[`${prefix} | Total Calculado`] = formData.get(`${prefix}_total_hidden`) + ' $';
-                // El campo no tiene value si no está marcado, por lo que comparamos con 'on'
                 orderData[`${prefix} | No se cobra el servicio`] = formData.get(`${prefix}_no_cobro_check`) === 'on' ? 'Sí' : 'No';
                 
                 if (orderData[`${prefix} | No se cobra el servicio`] === 'Sí') {
@@ -770,22 +823,22 @@
             }
 
 
-            // 3. **GUARDAR EN FIREBASE**
+            // 6. **GUARDAR EN FIREBASE**
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
-                // 4. Actualizar array local y contador
+                // 7. Actualizar array local y contador
                 orderData.id = docRef.id; 
                 workOrders.push(orderData);
                 otCounter++;
                 
-                // 5. Guardar la nueva estructura/contador
+                // 8. Guardar la nueva estructura/contador
                 await saveFormStructure(false); 
 
-                // 6. Generar PDF
+                // 9. Generar PDF
                 generatePDF(orderData);
 
-                // 7. Reiniciar UI
+                // 10. Reiniciar UI
                 form.reset();
                 renderWorkOrderForm(); // Vuelve a renderizar para limpiar estados
                 renderOrdersTable(); 
