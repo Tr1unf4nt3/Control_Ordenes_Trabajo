@@ -385,7 +385,7 @@
             }
         };
 
-        // Estructura inicial por defecto (MODIFICADA CON NUMERACIÓN ROMANA)
+        // Estructura inicial por defecto (CON NUMERACIÓN ROMANA)
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
@@ -408,11 +408,12 @@
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     
                     // Lógica de Migración: si los títulos guardados no tienen los números romanos, los agregamos.
+                    // Esto asegura que las estructuras antiguas se actualicen automáticamente.
                     if (formStructure.length >= 3) {
                          // Asumo que la longitud y el orden de los títulos fijos es el correcto
-                         if (formStructure[0].title === "Información General") formStructure[0].title = "I. Información General";
-                         if (formStructure[1].title === "Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
-                         if (formStructure[2].title === "Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
+                         if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
+                         if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
+                         if (formStructure[2].title === "Información del Trabajo/Obra" || formStructure[2].title === "III. Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
                     }
 
                     otCounter = data.otCounter || 1;
@@ -755,7 +756,7 @@
                     let onChangeEvent = '';
                     let isAutofillField = false;
 
-                    // Lógica para deshabilitar campos de autollenado
+                    // Lógica para deshabilitar campos de autollenado (ahora usa el título con el número romano)
                     if (section.title.includes('II. Información de la Contratista')) {
                         // Los campos autollenados deben usar su label como ID
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
@@ -1065,7 +1066,15 @@
 
 
             // Contenido del Formulario por Secciones (Dinámicas)
-            formStructure.forEach(section => {
+            formStructure.forEach((section, secIndex) => {
+                
+                // Aplicar el estilo page-break-inside: avoid a la sección III y las secciones condicionales.
+                // Esto ayuda a que una sección entera se mueva si no cabe, evitando cortes.
+                // Se aplica a partir del índice 2 (la sección III. Información del Trabajo/Obra)
+                const breakAvoidStyle = (secIndex >= 2) ? 'style="page-break-inside: avoid;"' : ''; 
+                
+                formContentHTML += `<div ${breakAvoidStyle}>`; // <-- INICIO: Bloque con salto de página evitado.
+
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
@@ -1083,6 +1092,7 @@
                     `;
                 });
                 formContentHTML += '</table>';
+                formContentHTML += `</div>`; // <-- FIN: Bloque con salto de página evitado.
             });
             
             // Contenido de las Secciones Condicionales (Fijas - NUEVA ESTRUCTURA)
@@ -1090,6 +1100,7 @@
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
+                formContentHTML += `<div style="page-break-inside: avoid;">`; // <-- INICIO: Bloque condicional con salto de página evitado.
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
 
                 formContentHTML += `
@@ -1105,12 +1116,13 @@
                 `;
 
                 formContentHTML += '</table>';
+                formContentHTML += `</div>`; // <-- FIN: Bloque condicional con salto de página evitado.
             }
 
 
             // --- SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
              formContentHTML += `
-                <div class="pdf-signatures">
+                <div class="pdf-signatures" style="page-break-inside: avoid; page-break-before: auto;">
                     <span>
                         Firma Contratista:<hr>
                     </span>
@@ -1172,4 +1184,3 @@
 
 </body>
 </html>
-
