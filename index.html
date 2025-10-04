@@ -269,15 +269,15 @@
             }
         };
 
-        // Estructura inicial por defecto
+        // Estructura inicial por defecto (MODIFICADA CON NUMERACIÓN ROMANA)
         const DEFAULT_FORM_STRUCTURE = [
-            { title: "Información General", fields: [
+            { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
-            { title: "Información de la Contratista", fields: []},
-            { title: "Información del Trabajo/Obra", fields: []}
+            { title: "II. Información de la Contratista", fields: []},
+            { title: "III. Información del Trabajo/Obra", fields: []}
         ];
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
@@ -288,7 +288,17 @@
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 if (configDoc.exists) {
                     const data = configDoc.data();
+                    // Usar la estructura guardada, o si no existe, la DEFAULT
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
+                    
+                    // Lógica de Migración: si los títulos guardados no tienen los números romanos, los agregamos.
+                    if (formStructure.length >= 3) {
+                         // Asumo que la longitud y el orden de los títulos fijos es el correcto
+                         if (formStructure[0].title === "Información General") formStructure[0].title = "I. Información General";
+                         if (formStructure[1].title === "Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
+                         if (formStructure[2].title === "Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
+                    }
+
                     otCounter = data.otCounter || 1;
                 } else {
                     // Primera vez: usa el valor por defecto y guárdalo
@@ -501,6 +511,21 @@
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO (INCLUYE CÁLCULOS Y CONDICIONALES) ***
 
         /**
+         * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
+         * @returns {string} Fecha en formato DD/MM/AAAA.
+         */
+        function getCurrentCaracasDate() {
+            const now = new Date();
+            // Usamos las opciones de formato y la zona horaria de Caracas para forzar la fecha GMT-4.
+            return now.toLocaleDateString('es-ES', { 
+                timeZone: 'America/Caracas',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+        
+        /**
          * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
          */
         function autofillContratistaData(selectElement) {
@@ -562,6 +587,7 @@
             document.getElementById('node_acceso_precio_unitario').value = '';
             document.getElementById('node_acceso_puntos').value = '';
             document.getElementById('node_acceso_total_display').textContent = '0.00';
+            document.getElementById('node_acceso_total_hidden').value = '0.00';
             document.getElementById('node_acceso_descripcion').value = '';
             document.getElementById('node_acceso_abono_mensual').value = '';
 
@@ -572,6 +598,7 @@
             document.getElementById('isp_precio_unitario').value = '';
             document.getElementById('isp_puntos').value = '';
             document.getElementById('isp_total_display').textContent = '0.00';
+            document.getElementById('isp_total_hidden').value = '0.00';
             document.getElementById('isp_descripcion').value = '';
             document.getElementById('isp_abono_mensual').value = '';
 
@@ -590,7 +617,8 @@
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
-            const today = new Date().toISOString().substring(0, 10);
+            // Utilizamos la nueva función para obtener la fecha de Caracas
+            const todayCaracas = getCurrentCaracasDate(); 
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
@@ -612,7 +640,7 @@
                     let isAutofillField = false;
 
                     // Lógica para deshabilitar campos de autollenado
-                    if (section.title === 'Información de la Contratista') {
+                    if (section.title.includes('II. Información de la Contratista')) {
                         // Los campos autollenados deben usar su label como ID
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
                         if (autofillKeys.includes(field.label)) {
@@ -641,8 +669,10 @@
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
                         case 'date-auto':
-                            value = today;
-                            inputHTML = `<input type="date" value="${value}" disabled>`;
+                            // Usamos la variable con la fecha de Caracas
+                            value = todayCaracas;
+                            // Se muestra la fecha de Caracas, pero el campo sigue siendo de tipo "text" y disabled
+                            inputHTML = `<input type="text" value="${value}" disabled>`; 
                             break;
                         case 'date-input':
                             inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
@@ -761,7 +791,7 @@
                 for (const field of section.fields) {
                     if (!field.required || field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') continue;
 
-                    let fieldId = (section.title === 'Información de la Contratista' && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
                                 ? field.label 
                                 : field.id;
                     
@@ -823,16 +853,20 @@
             const orderData = {};
             
             // 4. Recopilar datos estáticos y dinámicos del formulario principal
+            const caracasDate = getCurrentCaracasDate(); // Obtenemos la fecha de Caracas aquí una vez
+
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
-                    let fieldId = (section.title === 'Información de la Contratista' && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
                                 ? field.label 
                                 : field.id;
 
                     if (field.type === 'ot_counter') value = otCounter.toString();
                     else if (field.type === 'date-auto') {
-                        value = new Date().toLocaleDateString('es-ES');
+                        // Usamos la fecha de Caracas para la BD
+                        value = caracasDate;
+                        // Almacenamos este valor en un campo clave que el PDF usa
                         orderData['Fecha Creación Orden Trabajo'] = value; 
                     }
                     else if (field.type === 'static') value = field.value;
