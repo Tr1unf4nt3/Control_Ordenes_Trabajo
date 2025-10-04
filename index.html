@@ -153,7 +153,7 @@
         
         /* Estilo para las firmas en el PDF */
         .pdf-signatures {
-            margin-top: 60px; /* AUMENTADO DE 50px A 60px (1cm más abajo) */
+            margin-top: 60px; /* 1cm más abajo */
             padding-top: 30px;
             border-top: 1px dashed #B0C4DE;
             display: flex;
@@ -170,6 +170,17 @@
             border: none;
             border-top: 1px solid #36454F;
             margin: 5px 0 0 0;
+        }
+        
+        /* Estilos específicos para el encabezado en páginas > 1 del PDF */
+        .pdf-header-secondary {
+            position: fixed; /* Fijo en la parte superior */
+            top: 10px; /* Posición ajustada para evitar margen */
+            right: 20px; /* Posición ajustada para el lado derecho */
+            font-size: 14px; /* Tamaño similar al de las secciones */
+            color: #555;
+            font-weight: bold;
+            z-index: 1000;
         }
 
     </style>
@@ -1050,6 +1061,9 @@
             const otNumber = data['Orden de Trabajo'];
             const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'] || 'N/A';
             const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
+            
+            // Texto para el encabezado de las páginas secundarias
+            const secondaryHeader = `Orden de Trabajo Nro. ${otNumber}`;
 
             // --- Contenido del Formulario (Página 1 y siguientes) ---
             let formContentHTML = `
@@ -1145,16 +1159,37 @@
             const element = document.createElement('div');
             element.innerHTML = formContentHTML;
             
-            // Configuración de html2pdf para añadir márgenes (1cm = 10mm)
+            // --- LÓGICA DEL ENCABEZADO REPETIDO EN PÁGINAS > 1 ---
             const opt = {
-                margin:       10, // Margen en milímetros (1cm)
+                // MODIFICACIÓN 2: Margen incrementado a 20mm (2cm)
+                margin:       20, 
                 filename:     fileName,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2 },
                 jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
             };
 
-            html2pdf().from(element).set(opt).save();
+            // Usamos la propiedad `pagebreak` y `callback` para añadir el encabezado
+            html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
+                const totalPages = pdf.internal.getNumberOfPages();
+                
+                // Comenzamos desde la página 2
+                for (let i = 2; i <= totalPages; i++) {
+                    pdf.setPage(i);
+                    // Establecer fuente y tamaño (similar al de las secciones)
+                    pdf.setFontSize(14); 
+                    pdf.setTextColor(85, 85, 85); // Un gris oscuro
+
+                    // Calcular la posición (20mm desde la parte superior, 20mm desde el borde derecho - el margen)
+                    const x = pdf.internal.pageSize.getWidth() - 20; 
+                    const y = 20; 
+
+                    pdf.text(secondaryHeader, x, y, { 
+                        align: 'right' // Alinear el texto a la derecha
+                    });
+                }
+            }).save();
+
         }
         
         function downloadOrder(orderId) {
