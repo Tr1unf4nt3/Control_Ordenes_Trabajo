@@ -153,7 +153,7 @@
         
         /* Estilo para las firmas en el PDF */
         .pdf-signatures {
-            margin-top: 50px;
+            margin-top: 60px; /* AUMENTADO DE 50px A 60px (1cm más abajo) */
             padding-top: 30px;
             border-top: 1px dashed #B0C4DE;
             display: flex;
@@ -221,7 +221,7 @@
         
         // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
-          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
+          apiKey: "AIzaSyBHg18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
           authDomain: "ordenestrabajo-39eab.firebaseapp.com",
           projectId: "ordenestrabajo-39eab",
           storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
@@ -675,7 +675,7 @@
             const puntos = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')) || 0;
             const total = precioUnitario * puntos;
             
-            // Actualiza el campo Total
+            // Actualiza el campo Total (Visualización)
             document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2);
             
             // Almacena el valor Total real en un campo hidden para capturarlo al guardar
@@ -1100,6 +1100,12 @@
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
+                // Obtener valores de cálculo
+                const precioUnitario = data[`${prefix} | Precio Unitario`] || '0.00';
+                const puntos = data[`${prefix} | Puntos`] || '0';
+                const totalCalculado = data[`${prefix} | Total (Precio Unitario x Puntos)`] || '0.00';
+                
+                
                 formContentHTML += `<div style="page-break-inside: avoid;">`; // <-- INICIO: Bloque condicional con salto de página evitado.
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
 
@@ -1108,8 +1114,10 @@
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago x VGT a cargo de Inter:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago x VGT a cargo de Inter`]}</td></tr>
                     
-                    <tr style="background-color: #e0f7fa;"><td colspan="2" style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${data[`${prefix} | Precio Unitario`]}) x Puntos (${data[`${prefix} | Puntos`]}) = Total</td></tr>
-                    <tr style="font-weight: bold;"><td style="width: 35%; padding: 8px; background-color: #B0C4DE;">TOTAL CALCULADO:</td><td style="width: 65%; padding: 8px; background-color: #ADD8E6;">${data[`${prefix} | Total (Precio Unitario x Puntos)`]}</td></tr>
+                    <tr style="background-color: #e0f7fa;">
+                        <td style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${precioUnitario}) x Puntos (${puntos}) = Total</td>
+                        <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
+                    </tr>
                     
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Descripción:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Descripción`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Abono Mensual a Recibir por el cliente:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Abono Mensual a Recibir por el cliente`]}</td></tr>
@@ -1122,7 +1130,7 @@
 
             // --- SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
              formContentHTML += `
-                <div class="pdf-signatures" style="page-break-inside: avoid; page-break-before: auto;">
+                <div class="pdf-signatures" style="page-break-inside: avoid; page-break-before: auto;"> 
                     <span>
                         Firma Contratista:<hr>
                     </span>
