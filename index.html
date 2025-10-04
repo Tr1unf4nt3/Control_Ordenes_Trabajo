@@ -81,8 +81,11 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            /* Flex vertical para etiquetas y horizontal para inputs/resultados */
+            flex-wrap: wrap; 
         }
-        .calculation-group label { width: 100%; }
+        .calculation-group label { flex-basis: 100%; margin-bottom: 5px; } /* Etiquetas ocupan todo el ancho */
+        .calculation-input { flex-basis: calc(50% - 20px); } /* Inputs lado a lado */
 
         /* Estilo para el campo Total calculado */
         .total-display {
@@ -92,6 +95,8 @@
             border: 1px dashed var(--color-accent);
             padding: 10px;
             border-radius: 6px;
+            min-width: 150px;
+            flex-grow: 1;
         }
 
         button {
@@ -521,33 +526,20 @@
             }
         }
 
-
-        function calculateTotal(prefix) {
+        // NUEVA FUNCIÓN DE CÁLCULO
+        function calculateNewTotal(prefix) {
             // Asegura que los valores sean números, reemplazando comas por puntos si el usuario las usó
-            const montoReal = parseFloat(document.getElementById(`${prefix}_monto_real`).value.replace(',', '.')) || 0;
-            const incremento = parseFloat(document.getElementById(`${prefix}_incremento`).value.replace(',', '.')) || 0;
-            const total = montoReal + incremento;
+            const precioUnitario = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')) || 0;
+            const puntos = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')) || 0;
+            const total = precioUnitario * puntos;
             
             // Actualiza el campo Total
-            document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2) + ' $';
+            document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2);
             
             // Almacena el valor Total real en un campo hidden para capturarlo al guardar
             document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
         }
 
-        function toggleJustification(prefix) {
-            const isChecked = document.getElementById(`${prefix}_no_cobro_check`).checked;
-            const justificationDiv = document.getElementById(`${prefix}_justificacion_div`);
-            
-            if (isChecked) {
-                justificationDiv.style.display = 'block';
-                // Solo hacemos que el campo sea obligatorio si se marca el check
-                document.getElementById(`${prefix}_justificacion`).required = true; 
-            } else {
-                justificationDiv.style.display = 'none';
-                document.getElementById(`${prefix}_justificacion`).required = false;
-            }
-        }
 
         function toggleConditionalSection(type) {
             const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
@@ -561,22 +553,30 @@
             nodeAccessButton.classList.remove('active');
             ispButton.classList.remove('active');
             
-            // Resetear inputs y checks internos (Importante para evitar que se guarden datos ocultos)
-            document.getElementById('node_acceso_no_cobro_check').checked = false;
-            document.getElementById('isp_no_cobro_check').checked = false;
+            // 2. Resetear inputs y selecciones (Importante para evitar que se guarden datos ocultos)
             
-            // Resetear campos numéricos (usando '' en lugar de 0 para que no sean requeridos si están ocultos)
-            document.getElementById('node_acceso_monto_real').value = '';
-            document.getElementById('node_acceso_incremento').value = '';
-            document.getElementById('isp_monto_real').value = '';
-            document.getElementById('isp_incremento').value = '';
-            
-            // Ocultar justificaciones
-            toggleJustification('node_acceso');
-            toggleJustification('isp');
+            // Campos de Node_Acceso
+            document.getElementById('node_acceso_costo_proyectado').value = '';
+            document.getElementById('node_acceso_pago_por_realizado').value = 'Inter';
+            document.getElementById('node_acceso_pago_vgt_inter').value = '';
+            document.getElementById('node_acceso_precio_unitario').value = '';
+            document.getElementById('node_acceso_puntos').value = '';
+            document.getElementById('node_acceso_total_display').textContent = '0.00';
+            document.getElementById('node_acceso_descripcion').value = '';
+            document.getElementById('node_acceso_abono_mensual').value = '';
+
+            // Campos de ISP
+            document.getElementById('isp_costo_proyectado').value = '';
+            document.getElementById('isp_pago_por_realizado').value = 'Inter';
+            document.getElementById('isp_pago_vgt_inter').value = '';
+            document.getElementById('isp_precio_unitario').value = '';
+            document.getElementById('isp_puntos').value = '';
+            document.getElementById('isp_total_display').textContent = '0.00';
+            document.getElementById('isp_descripcion').value = '';
+            document.getElementById('isp_abono_mensual').value = '';
 
 
-            // 2. Mostrar la sección seleccionada
+            // 3. Mostrar la sección seleccionada
             if (type === 'node_acceso') {
                 nodeAccessSection.style.display = 'block';
                 nodeAccessButton.classList.add('active');
@@ -584,9 +584,6 @@
                 ispSection.style.display = 'block';
                 ispButton.classList.add('active');
             }
-            
-            // 3. Forzar el cálculo inicial (0.00) si se muestra la sección
-            if (type) calculateTotal(type);
         }
 
 
@@ -690,10 +687,10 @@
             `;
             
             // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN NODO DE ACCESO ---
-            formElement.innerHTML += renderConditionalSection('node_acceso', 'Construcción Nodo de Acceso');
+            formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Condicionales: La Construcción es de Nodo de Acceso');
 
             // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
-            formElement.innerHTML += renderConditionalSection('isp', 'Construcción ISP');
+            formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
             
             // Inicializar las secciones ocultas
             toggleConditionalSection(null);
@@ -704,38 +701,52 @@
         }
 
         function renderConditionalSection(prefix, title) {
-            // NOTA: Se ha eliminado el 'required' de los campos numéricos en las secciones condicionales.
-            // La validación de estos campos se realiza manualmente en generateWorkOrder() para que solo
-            // sean obligatorios si la sección está ACTIVA.
+            // Se asume que todos los nuevos campos deben ser obligatorios si la sección se activa.
+            const onChangeFunc = `calculateNewTotal('${prefix}')`;
+            
             return `
                 <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
                     <h4>${title}</h4>
                     
-                    <p><label for="${prefix}_monto_real">Monto Real de la Factibilidad (*):</label></p>
-                    <div class="calculation-group">
-                        <input type="number" step="0.01" min="0" id="${prefix}_monto_real" name="${prefix}_monto_real" placeholder="0.00" oninput="calculateTotal('${prefix}')">
-                        <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
-                    </div>
-
-                    <p><label for="${prefix}_incremento">Incremento de Pagos VGT y Otros Servicios (*):</label></p>
-                    <div class="calculation-group">
-                        <input type="number" step="0.01" min="0" id="${prefix}_incremento" name="${prefix}_incremento" placeholder="0.00" oninput="calculateTotal('${prefix}')">
-                        <span style="font-size: 1.5em; font-weight: bold; margin-left: -30px;">$</span>
+                    <p><label for="${prefix}_costo_proyectado">Costo Proyectado de la Obra (*):</label>
+                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado" required></p>
+                    
+                    <p><label for="${prefix}_pago_por_realizado">Pago por realizado por (*):</label>
+                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado" required>
+                            <option value="Inter">Inter</option>
+                            <option value="Cliente">Cliente</option>
+                        </select></p>
                         
-                        <label>Total:</label>
-                        <div id="${prefix}_total_display" class="total-display" style="width: 150px;">0.00 $</div>
+                    <p><label for="${prefix}_pago_vgt_inter">Pago x VGT a cargo de Inter (*):</label>
+                        <input type="text" id="${prefix}_pago_vgt_inter" name="${prefix}_pago_vgt_inter" required></p>
+                    
+                    <hr>
+                    
+                    <h4>Cálculo: Precio Unitario x Puntos = Total</h4>
+                    <div class="calculation-group">
+                        <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span style="font-size: 1.5em; font-weight: bold; margin-left: 10px; margin-right: 10px;">X</span>
+                        
+                        <label for="${prefix}_puntos">Puntos (*):</label>
+                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span style="font-size: 1.5em; font-weight: bold; margin-left: 10px; margin-right: 10px;">=</span>
+                        
+                        <label style="flex-basis: auto;">Total:</label>
+                        <div id="${prefix}_total_display" class="total-display">0.00</div>
                         <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
                     </div>
+                    
+                    <hr>
 
-                    <div style="margin-top: 20px;">
-                        <input type="checkbox" id="${prefix}_no_cobro_check" name="${prefix}_no_cobro_check" onclick="toggleJustification('${prefix}')">
-                        <label for="${prefix}_no_cobro_check" style="display: inline; font-weight: bold;">No se cobra el servicio</label>
-                    </div>
-
-                    <div id="${prefix}_justificacion_div" style="display: none; margin-top: 15px;">
-                        <p><label for="${prefix}_justificacion">Justificación (*):</label></p>
-                        <textarea id="${prefix}_justificacion" name="${prefix}_justificacion" placeholder="Escriba la justificación aquí..."></textarea>
-                    </div>
+                    <p><label for="${prefix}_descripcion">Descripción (*):</label>
+                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required></textarea></p>
+                    
+                    <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
+                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
+                        
                 </div>
             `;
         }
@@ -745,10 +756,9 @@
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
 
-            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS
+            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS (Mantener)
             for (const section of formStructure) {
                 for (const field of section.fields) {
-                    // Los campos fijos y estáticos no requieren validación manual
                     if (!field.required || field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') continue;
 
                     let fieldId = (section.title === 'Información de la Contratista' && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
@@ -757,8 +767,6 @@
                     
                     const inputElement = document.getElementById(fieldId);
 
-                    // La validación de HTML5 se encarga de la mayoría, pero la llamamos explícitamente.
-                    // Los campos deshabilitados (autollenados) tienen su valor, así que solo validamos los que no lo estén.
                     if (inputElement && !inputElement.disabled && !inputElement.checkValidity()) {
                         firstInvalidField = inputElement;
                         break; 
@@ -767,24 +775,35 @@
                 if (firstInvalidField) break; 
             }
 
-            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
+            // 2. NUEVA VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
             if (!firstInvalidField && selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
-                const montoReal = document.getElementById(`${prefix}_monto_real`);
-                const incremento = document.getElementById(`${prefix}_incremento`);
-                const justificacion = document.getElementById(`${prefix}_justificacion`);
+                const camposCondicionales = [
+                    document.getElementById(`${prefix}_costo_proyectado`),
+                    document.getElementById(`${prefix}_pago_por_realizado`),
+                    document.getElementById(`${prefix}_pago_vgt_inter`),
+                    document.getElementById(`${prefix}_precio_unitario`),
+                    document.getElementById(`${prefix}_puntos`),
+                    document.getElementById(`${prefix}_descripcion`),
+                    document.getElementById(`${prefix}_abono_mensual`)
+                ];
 
-                // Validar Monto Real
-                if (!montoReal.value || parseFloat(montoReal.value.replace(',', '.')) < 0) {
-                    firstInvalidField = montoReal;
-                }
-                // Validar Incremento
-                else if (!incremento.value || parseFloat(incremento.value.replace(',', '.')) < 0) {
-                    firstInvalidField = incremento;
-                }
-                // Validar Justificación si está marcada
-                else if (justificacion.required && !justificacion.value.trim()) {
-                    firstInvalidField = justificacion;
+                for (const campo of camposCondicionales) {
+                    // Validar que los campos de texto/select tengan valor
+                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA') {
+                        if (!campo.value.trim()) {
+                            firstInvalidField = campo;
+                            break;
+                        }
+                    } 
+                    // Validar que los campos numéricos sean números positivos
+                    else if (campo.type === 'number') {
+                        const numericValue = parseFloat(campo.value.replace(',', '.'));
+                        if (isNaN(numericValue) || numericValue < 0) {
+                            firstInvalidField = campo;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -792,7 +811,6 @@
             if (firstInvalidField) {
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
                 
-                // Mostrar la burbuja de error nativa del navegador y hacer scroll
                 firstInvalidField.reportValidity();
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidField.focus();
@@ -827,22 +845,25 @@
                 });
             });
             
-            // 5. Recopilar datos de la sección condicional seleccionada
+            // 5. NUEVA LÓGICA: Recopilar datos de la sección condicional seleccionada
             orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 
-                calculateTotal(prefix); 
+                calculateNewTotal(prefix); // Asegura que el total esté actualizado antes de guardar
 
-                orderData[`${prefix} | Monto Real Factibilidad`] = parseFloat(document.getElementById(`${prefix}_monto_real`).value.replace(',', '.')).toFixed(2) + ' $';
-                orderData[`${prefix} | Incremento VGT y Otros`] = parseFloat(document.getElementById(`${prefix}_incremento`).value.replace(',', '.')).toFixed(2) + ' $';
-                orderData[`${prefix} | Total Calculado`] = formData.get(`${prefix}_total_hidden`) + ' $';
-                orderData[`${prefix} | No se cobra el servicio`] = formData.get(`${prefix}_no_cobro_check`) === 'on' ? 'Sí' : 'No';
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = document.getElementById(`${prefix}_costo_proyectado`).value;
+                orderData[`${prefix} | Pago por realizado por`] = document.getElementById(`${prefix}_pago_por_realizado`).value;
+                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = document.getElementById(`${prefix}_pago_vgt_inter`).value;
                 
-                if (orderData[`${prefix} | No se cobra el servicio`] === 'Sí') {
-                    orderData[`${prefix} | Justificación No Cobro`] = formData.get(`${prefix}_justificacion`);
-                }
+                // Campos de Cálculo
+                orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
+                orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); // Puntos enteros
+                orderData[`${prefix} | Total (Precio Unitario x Puntos)`] = formData.get(`${prefix}_total_hidden`);
+                
+                orderData[`${prefix} | Descripción`] = document.getElementById(`${prefix}_descripcion`).value;
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = document.getElementById(`${prefix}_abono_mensual`).value;
             }
 
 
@@ -900,7 +921,7 @@
                     const label = field.label;
                     const value = data[label] || 'N/A';
                     
-                    // OMISIÓN DE CAMPOS REQUERIDOS EN EL PUNTO 1
+                    // OMISIÓN DE CAMPOS DEL ENCABEZADO
                     if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual' || label === 'Fecha Creación Orden Trabajo') return;
 
 
@@ -914,29 +935,30 @@
                 formContentHTML += '</table>';
             });
             
-            // Contenido de las Secciones Condicionales (Fijas)
+            // Contenido de las Secciones Condicionales (Fijas - NUEVA ESTRUCTURA)
             const type = data['Tipo de Construcción Seleccionada'];
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">Datos Condicionales: ${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
+                formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
 
                 formContentHTML += `
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Monto Real Factibilidad:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Monto Real Factibilidad`]}</td></tr>
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Incremento VGT y Otros:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Incremento VGT y Otros`]}</td></tr>
-                    <tr style="font-weight: bold;"><td style="width: 35%; padding: 8px; background-color: #B0C4DE;">TOTAL CALCULADO:</td><td style="width: 65%; padding: 8px; background-color: #ADD8E6;">${data[`${prefix} | Total Calculado`]}</td></tr>
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">No se cobra el servicio:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | No se cobra el servicio`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Costo Proyectado de la Obra:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Costo Proyectado de la Obra`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago x VGT a cargo de Inter:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago x VGT a cargo de Inter`]}</td></tr>
+                    
+                    <tr style="background-color: #e0f7fa;"><td colspan="2" style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${data[`${prefix} | Precio Unitario`]}) x Puntos (${data[`${prefix} | Puntos`]}) = Total</td></tr>
+                    <tr style="font-weight: bold;"><td style="width: 35%; padding: 8px; background-color: #B0C4DE;">TOTAL CALCULADO:</td><td style="width: 65%; padding: 8px; background-color: #ADD8E6;">${data[`${prefix} | Total (Precio Unitario x Puntos)`]}</td></tr>
+                    
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Descripción:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Descripción`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Abono Mensual a Recibir por el cliente:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Abono Mensual a Recibir por el cliente`]}</td></tr>
                 `;
-                if (data[`${prefix} | No se cobra el servicio`] === 'Sí') {
-                    formContentHTML += `
-                        <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Justificación No Cobro:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Justificación No Cobro`]}</td></tr>
-                    `;
-                }
 
                 formContentHTML += '</table>';
             }
-            
-            // --- NUEVA SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
+
+
+            // --- SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
              formContentHTML += `
                 <div class="pdf-signatures">
                     <span>
