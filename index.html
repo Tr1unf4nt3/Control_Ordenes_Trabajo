@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
+    <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
+    <!-- LIBRERÍAS DE FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
@@ -198,6 +200,7 @@
 
     <div id="main-app" class="container" style="display: none;">
         
+        <!-- Pestañas de Navegación -->
         <div class="tab">
             <button class="tablinks" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
@@ -205,12 +208,16 @@
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
+        <!-- Contenido de las Pestañas -->
+
+        <!-- Pestaña 1: Creación de Orden de Trabajo -->
         <div id="new-order" class="tabcontent">
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
         </div>
 
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
         <div id="view-orders" class="tabcontent">
             <h3>Registro Histórico de Órdenes</h3>
             <table id="orders-table">
@@ -221,6 +228,7 @@
             </table>
         </div>
 
+        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
@@ -231,14 +239,16 @@
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
-        // ** CONFIGURACIÓN DE FIREBASE **
+        // ** CONFIGURACIÓN DE FIREBASE (ACTUALIZADA CON TU API KEY) **
         const firebaseConfig = {
-          apiKey: "AIzaSyBHg18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
+          // --- VALORES PROPORCIONADOS POR EL USUARIO ---
+          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
           authDomain: "ordenestrabajo-39eab.firebaseapp.com",
           projectId: "ordenestrabajo-39eab",
           storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
           messagingSenderId: "561184772303",
-          appId: "1:561184772303:web:765f5859b4b3a332e8277ba"
+          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
+          // ---------------------------------------------
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -248,13 +258,15 @@
         const ORDERS_COLLECTION = db.collection("workOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
         
-        // Variables de estado (ahora sincronizadas con Firebase)
+        // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
         let otCounter = 1; 
         let currentRole = null; 
         
-        // <<< SE ELIMINARON LAS CONSTANTES DE USUARIOS Y CONTRASEÑAS LOCALES >>>
+        // EL CORREO DE ADMINISTRADOR UTILIZADO EN FIREBASE AUTH
+        const ADMIN_EMAIL = 'labortradingsg@gmail.com'; 
+
         
         // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
         const CONTRATISTAS_DATA = {
@@ -322,7 +334,8 @@
 
             } catch (e) {
                 console.error("Error cargando datos iniciales: ", e);
-                alert("Error al conectar con la base de datos. Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
+                // Si la API Key es correcta, este error podría ser de Reglas de Seguridad de Firestore
+                alert("Error al conectar con la base de datos o al cargar datos iniciales. Verifique sus reglas de seguridad. Detalles: " + e.message);
             }
         }
         
@@ -357,12 +370,10 @@
                 const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
                 const user = userCredential.user;
                 
-                // 2. Determinar el rol basado en el email (DEBE COINCIDIR CON LA CUENTA CREADA EN FIREBASE)
-                // Usar 'admin@tudominio.com' como el email que identifica al administrador
-                let role = (user.email === 'labortradingsg@gmail.com') ? 'admin' : 'normal'; 
+                // 2. Determinar el rol basado en el email (USANDO EL CORREO CONFIGURADO)
+                let role = (user.email === ADMIN_EMAIL) ? 'admin' : 'normal'; 
                 
                 currentRole = role;
-                // YA NO USAMOS sessionStorage para el rol, el listener de Auth lo gestiona
                 
                 document.getElementById('login-view').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
@@ -374,8 +385,12 @@
                     errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
                 } else if (error.code === 'auth/invalid-email') {
                     errorElement.textContent = 'El formato del correo es inválido.';
-                } else {
-                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
+                } else if (error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
+                     // El error de API Key anterior se manifestaba aquí, si el error persiste, es de red/dominio
+                    errorElement.textContent = 'Error de conexión o configuración (Verifique consola F12 y Dominios Autorizados).';
+                }
+                 else {
+                    errorElement.textContent = 'Error de conexión desconocido. Intente de nuevo.';
                 }
             }
         }
@@ -415,7 +430,7 @@
                 if (user) {
                     // El usuario está logueado
                     // Determinar rol basado en email
-                    let role = (user.email === 'admin@tudominio.com') ? 'admin' : 'normal';
+                    let role = (user.email === ADMIN_EMAIL) ? 'admin' : 'normal';
                     currentRole = role;
                     
                     document.getElementById('login-view').style.display = 'none';
@@ -1049,6 +1064,7 @@
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago x VGT a cargo de Inter:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago x VGT a cargo de Inter`]}</td></tr>
                     
+                    <!-- Cálculo en una sola fila -->
                     <tr style="background-color: #e0f7fa;">
                         <td style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${precioUnitario}) x Puntos (${puntos}) = Total</td>
                         <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
@@ -1226,4 +1242,3 @@
 
 </body>
 </html>
-
