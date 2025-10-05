@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
-    <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
-    <!-- LIBRERÍAS DE FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
@@ -200,24 +198,19 @@
 
     <div id="main-app" class="container" style="display: none;">
         
-        <!-- Pestañas de Navegación -->
         <div class="tab">
-            <button class="tablinks" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
+            <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
-        <!-- Contenido de las Pestañas -->
-
-        <!-- Pestaña 1: Creación de Orden de Trabajo -->
         <div id="new-order" class="tabcontent">
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
         </div>
 
-        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
         <div id="view-orders" class="tabcontent">
             <h3>Registro Histórico de Órdenes</h3>
             <table id="orders-table">
@@ -228,7 +221,6 @@
             </table>
         </div>
 
-        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
@@ -239,16 +231,15 @@
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
-        // ** CONFIGURACIÓN DE FIREBASE (ACTUALIZADA CON TU API KEY) **
+        // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
-          // --- VALORES PROPORCIONADOS POR EL USUARIO ---
-          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
+          // *** ASEGÚRATE DE QUE ESTOS VALORES SEAN LOS CORRECTOS DE TU PROYECTO ***
+          apiKey: "AIzaSyBHg18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
           authDomain: "ordenestrabajo-39eab.firebaseapp.com",
           projectId: "ordenestrabajo-39eab",
           storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
           messagingSenderId: "561184772303",
-          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
-          // ---------------------------------------------
+          appId: "1:561184772303:web:765f5859b4b3a332e8277ba"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -263,37 +254,169 @@
         let workOrders = []; 
         let otCounter = 1; 
         let currentRole = null; 
-        
-        // EL CORREO DE ADMINISTRADOR UTILIZADO EN FIREBASE AUTH
-        const ADMIN_EMAIL = 'labortradingsg@gmail.com'; 
 
+        // ----------------------------------------------------------------------------------
+        // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
+        // ----------------------------------------------------------------------------------
+
+        // Coloque aquí todos los correos electrónicos con acceso de administrador
+        const ADMIN_EMAILS = [
+            'labortradingsg@gmail.com', // El correo que usted configuró
+            'jesus.longa@inter.com.ve' // Otro administrador de ejemplo
+        ]; 
+
+        // Coloque aquí todos los correos electrónicos con acceso de solo visualización
+        const VIEWER_EMAILS = [
+            'jorge.basualdo@inter.com.ve', // Visualizador de ejemplo
+        ]; 
+
+        // ----------------------------------------------------------------------------------
+        // *** FIN CONFIGURACIÓN DE ROLES ***
+        // ----------------------------------------------------------------------------------
         
         // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
         const CONTRATISTAS_DATA = {
-            // El administrador puede agregar, modificar o eliminar contratistas aquí
             "Seleccione una Empresa": {
                 "Apellido y Nombre del Responsable": "",
                 "Rif": ""
             },
-            "Contratista A C.A.": {
-                "Apellido y Nombre del Responsable": "Pérez Juan",
-                "Rif": "J-12345678-0"
+            " JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES  C.A": {
+                "Apellido y Nombre del Responsable": "JOHN RIVAS",
+                "Rif": "J-50507058-4"
             },
-            "Servicios B, S.A.": {
-                "Apellido y Nombre del Responsable": "Gómez María",
-                "Rif": "G-98765432-1"
+            "CHASSERAL  C.A": {
+                "Apellido y Nombre del Responsable": "YORKFRAN PERAZA",
+                "Rif": "J-29510646-7"
             },
-            "Construcciones Zulia C.L.": {
-                "Apellido y Nombre del Responsable": "López Carlos",
-                "Rif": "C-11223344-5"
+            "CONSERVI AJ C.A": {
+                "Apellido y Nombre del Responsable": "ALFONZO BASTARDO",
+                "Rif": "J-29548400-3"
+            },
+            "CORPORACION ACEL  C.A": {
+                "Apellido y Nombre del Responsable": "DANIEL GONCALVES",
+                "Rif": "J-30860621-9"
+            },
+            "CORPORACIÓN TORRA NET 2022  C.A": {
+                "Apellido y Nombre del Responsable": "JESUS TORRADO",
+                "Rif": "J-50308479-0"
+            },
+            "DISTRIBUIDORA TODO EN REDES G.S.R  C.A": {
+                "Apellido y Nombre del Responsable": "GASTON BUIZA",
+                "Rif": "J-40424835-8"
+            },
+            "FIBRA INTEGRA  C.A": {
+                "Apellido y Nombre del Responsable": "MARIE ANTONIETTE DAHDAH",
+                "Rif": "J-50265450-0"
+            },
+            "G&D INTEGRAL RED 2023": {
+                "Apellido y Nombre del Responsable": "RAFAEL GOMEZ",
+                "Rif": "J-50298686-3"
+            },
+            "GLOBAL FIX C.A": {
+                "Apellido y Nombre del Responsable": "CECILIA CASTRO - JEAN PIERRE LAPARROUSAZ",
+                "Rif": "J-31189038-6"
+            },
+            "INT.TV  C.A": {
+                "Apellido y Nombre del Responsable": "RAFAEL BERNAEZ",
+                "Rif": "J-50301107-6"
+            },
+            "INVERSIONES ELECTROMTEC 2020  C.A": {
+                "Apellido y Nombre del Responsable": "IGOR REGALADO",
+                "Rif": "J-50082533-1"
+            },
+            "INVERSIONES PROYECTOS LG 721  C.A": {
+                "Apellido y Nombre del Responsable": "DOMENICO LOLLI",
+                "Rif": "J-29831930-5"
+            },
+            "INVERSIONES TELE MATIK 321 C.A": {
+                "Apellido y Nombre del Responsable": "EDICSON TORRES - KATIUSKA",
+                "Rif": "J-29867936-0"
+            },
+            "JR TECH SUPPORT  C.A": {
+                "Apellido y Nombre del Responsable": "YENSY MARTINEZ",
+                "Rif": "J-50032575-4"
+            },
+            "LG ALPHA SOLUCIONES  C.A": {
+                "Apellido y Nombre del Responsable": "GILBERTO BERNAEZ",
+                "Rif": "J-50319061-2"
+            },
+            "MULTI INVERSIONES LA LOVEREÑA C.A": {
+                "Apellido y Nombre del Responsable": "CARLOS TOLEDO",
+                "Rif": "J-40492572-4"
+            },
+            "MULTISERVICIOS DAYRA-TEC  C.A": {
+                "Apellido y Nombre del Responsable": "MARINES GOMEZ",
+                "Rif": "J-50331914-3"
+            },
+            "PHONE MARKET STAR C.A": {
+                "Apellido y Nombre del Responsable": "NELSON MORA",
+                "Rif": "J-30919375-9"
+            },
+            "PROMOCIONES Y MERCADEO J FRANCHI C.A": {
+                "Apellido y Nombre del Responsable": "JOSE FRANCHI",
+                "Rif": "J-31574714-6"
+            },
+            "ROM-AR SERVICIOS Y MANTENIMIENTO  C.A": {
+                "Apellido y Nombre del Responsable": "ELENA RUIZ",
+                "Rif": "J-31128189-4"
+            },
+            "SERVICIOS DE TECNOLOGIA E INNOVACION (SERVITECH)  C.A": {
+                "Apellido y Nombre del Responsable": "JHOAN CELIS",
+                "Rif": "J-50028078-5"
+            },
+            "SERVICIOS INTEGRALES RFCF  C.A": {
+                "Apellido y Nombre del Responsable": "CESAR",
+                "Rif": "J-40387720-3"
+            },
+            "SERVICIOS J&G SOLUTION  C.A": {
+                "Apellido y Nombre del Responsable": "JESUS BERNAEZ",
+                "Rif": "J-50201745-3"
+            },
+            "SERVICIOS R G C.A": {
+                "Apellido y Nombre del Responsable": "NELSON PORRA",
+                "Rif": "J-29624230-5"
+            },
+            "SERVICIOS TEALCA C.A": {
+                "Apellido y Nombre del Responsable": "FRANKLYN MENDOZA",
+                "Rif": "J-31521527-6"
+            },
+            "SERVINDRECO C.A": {
+                "Apellido y Nombre del Responsable": "OSCAR GUERRERO",
+                "Rif": "J-31347293-0"
+            },
+            "SUMINISTROS INDUSTRIALES JAMIG C.A": {
+                "Apellido y Nombre del Responsable": "MIGUEL PEREZ",
+                "Rif": "J-40990643-4"
+            },
+            "SYCO 73  C.A": {
+                "Apellido y Nombre del Responsable": "JUAN SIVIRA",
+                "Rif": "J-31762306-1"
+            },
+            "TELECOMUNICACIONES JD SISTEM  C.A": {
+                "Apellido y Nombre del Responsable": "FLAVIA GOMEZ",
+                "Rif": "J-50126527-5"
+            },
+            "TELEIBARRA CA&EC  C.A": {
+                "Apellido y Nombre del Responsable": "CARLOS IBARRA",
+                "Rif": "J-50481799-6"
+            },
+            "W&S TECNOMARKET C.A": {
+                "Apellido y Nombre del Responsable": "YERWILL SILVA",
+                "Rif": "J-30993225-0"
+            },
+            "WV SOLUCIONES TECNO-EMPRESARIALES  C.A": {
+                "Apellido y Nombre del Responsable": "WILLIAN VALERO",
+                "Rif": "J-40973178-2"
             }
         };
 
-        // Estructura inicial por defecto (CON NUMERACIÓN ROMANA)
+        // Estructura inicial por defecto 
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
+                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
+                { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
             { title: "II. Información de la Contratista", fields: []},
@@ -308,10 +431,23 @@
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 if (configDoc.exists) {
                     const data = configDoc.data();
-                    // Usar la estructura guardada, o si no existe, la DEFAULT
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     
-                    // Lógica de Migración: si los títulos guardados no tienen los números romanos, los agregamos.
+                    // Lógica de Migración: si faltan campos fijos (como el nuevo de usuario), los agregamos.
+                    const infoGeneralFields = formStructure[0].fields;
+                    const hasUserField = infoGeneralFields.some(f => f.id === 'user_auto_fill');
+                    if (!hasUserField) {
+                         // Insertar el campo de usuario en la posición correcta (antes de la fecha)
+                         const dateIndex = infoGeneralFields.findIndex(f => f.id === 'current_date');
+                         if (dateIndex !== -1) {
+                             infoGeneralFields.splice(dateIndex, 0, DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         } else {
+                             // Si no encuentra la fecha, lo pone al final de la sección I
+                             infoGeneralFields.push(DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         }
+                    }
+
+                    // Lógica de Migración de títulos (siempre los mantenemos con el romano)
                     if (formStructure.length >= 3) {
                          if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
                          if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
@@ -334,8 +470,7 @@
 
             } catch (e) {
                 console.error("Error cargando datos iniciales: ", e);
-                // Si la API Key es correcta, este error podría ser de Reglas de Seguridad de Firestore
-                alert("Error al conectar con la base de datos o al cargar datos iniciales. Verifique sus reglas de seguridad. Detalles: " + e.message);
+                alert("Error al conectar con la base de datos. Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
             }
         }
         
@@ -356,22 +491,35 @@
             }
         }
         
-        // *** 3. LÓGICA DE LOGIN Y PESTAÑAS (MODIFICADA PARA FIREBASE AUTH) ***
-        
-        // MODIFICADA: Usa Firebase Authentication
+        // MODIFICADA: LÓGICA DE ROLES CENTRALIZADA (Usa las listas de ADMIN_EMAILS y VIEWER_EMAILS)
+        function getRoleFromEmail(email) {
+            // Verifica si el correo está en la lista de administradores
+            if (ADMIN_EMAILS.includes(email)) {
+                return 'admin';
+            } 
+            // Verifica si el correo está en la lista de visualizadores
+            else if (VIEWER_EMAILS.includes(email)) { 
+                return 'viewer'; 
+            } 
+            // Rol por defecto: usuario normal (puede crear órdenes)
+            else {
+                return 'normal'; 
+            }
+        }
+
+        // SIN CAMBIOS MAYORES
         async function login() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const errorElement = document.getElementById('login-error');
             errorElement.textContent = '';
             
-            // 1. Intenta iniciar sesión con Firebase Auth
             try {
                 const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
                 const user = userCredential.user;
                 
-                // 2. Determinar el rol basado en el email (USANDO EL CORREO CONFIGURADO)
-                let role = (user.email === ADMIN_EMAIL) ? 'admin' : 'normal'; 
+                // Determinar el rol usando la nueva función
+                let role = getRoleFromEmail(user.email); 
                 
                 currentRole = role;
                 
@@ -385,20 +533,15 @@
                     errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
                 } else if (error.code === 'auth/invalid-email') {
                     errorElement.textContent = 'El formato del correo es inválido.';
-                } else if (error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
-                     // El error de API Key anterior se manifestaba aquí, si el error persiste, es de red/dominio
-                    errorElement.textContent = 'Error de conexión o configuración (Verifique consola F12 y Dominios Autorizados).';
-                }
-                 else {
-                    errorElement.textContent = 'Error de conexión desconocido. Intente de nuevo.';
+                } else {
+                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
                 }
             }
         }
 
-        // MODIFICADA: Usa Firebase SignOut
+        // SIN CAMBIOS
         function logout() {
             firebase.auth().signOut().then(() => {
-                // El onAuthStateChanged se encargará de ocultar la app y mostrar el login
                 document.getElementById('email').value = '';
                 document.getElementById('password').value = '';
                 alert('Sesión cerrada correctamente.');
@@ -408,36 +551,45 @@
             });
         }
 
+        // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
         async function initializeApp(role) {
-            document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            // Un creador es 'admin' o 'normal'
+            const isCreator = (role === 'admin' || role === 'normal');
 
+            // 1. Control de visibilidad de pestañas
+            document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
+            // 'view-orders' siempre visible para todos
+            
             await loadInitialData(); 
             
+            // 2. Lógica para abrir la pestaña inicial correcta
             if (role === 'admin') {
                 renderFormEditor();
                 openTab(null, 'edit-form');
-            } else {
+            } else if (role === 'normal') {
                 openTab(null, 'new-order');
+            } else if (role === 'viewer') {
+                // El rol 'viewer' solo ve la tabla de órdenes
+                openTab(null, 'view-orders'); 
             }
+            
             renderWorkOrderForm();
             renderOrdersTable();
         }
 
-        // MODIFICADA: Usa el listener de Firebase Auth
+        // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
         window.onload = function() {
-            // Listener de estado de autenticación de Firebase
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
-                    // El usuario está logueado
-                    // Determinar rol basado en email
-                    let role = (user.email === ADMIN_EMAIL) ? 'admin' : 'normal';
+                    // Determinar rol usando la nueva función
+                    let role = getRoleFromEmail(user.email); 
                     currentRole = role;
                     
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('main-app').style.display = 'block';
                     initializeApp(role);
                 } else {
-                    // El usuario no está logueado
                     currentRole = null;
                     document.getElementById('main-app').style.display = 'none';
                     document.getElementById('login-view').style.display = 'block';
@@ -484,7 +636,8 @@
 
                 const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
                 section.fields.forEach((field, fieldIndex) => {
-                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') {
+                    // user-auto-fill al listado de campos fijos
+                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') {
                         fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
                         return;
                     }
@@ -550,8 +703,15 @@
         }
 
         function removeField(secIndex, fieldIndex) {
-            if (secIndex === 0 && fieldIndex < 3) {
-                alert("🚫 No se pueden eliminar los campos obligatorios y fijos de la primera sección.");
+            // user-auto-fill al listado de campos fijos
+            const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
+                            formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
+                            formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
+                            formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill';
+            
+            // La primera sección tiene los 4 campos fijos iniciales
+            if (secIndex === 0 && isFixed) {
+                alert("🚫 No se pueden eliminar los campos fijos y obligatorios de la primera sección.");
                 return;
             }
             if (confirm('¿Estás seguro de que quieres eliminar este campo?')) {
@@ -561,7 +721,7 @@
         }
 
 
-        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO (INCLUYE CÁLCULOS Y CONDICIONALES) ***
+        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
 
         /**
          * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
@@ -585,14 +745,12 @@
             const selectedCompanyName = selectElement.value;
             const data = CONTRATISTAS_DATA[selectedCompanyName];
             
-            // Si no hay datos (ej. "Seleccione una Empresa"), limpia los campos
             if (!data) {
                 document.getElementById('Apellido y Nombre del Responsable').value = '';
                 document.getElementById('Rif').value = '';
                 return;
             }
 
-            // Asumiendo que los campos Responsable y Rif existen y sus IDs son sus propios labels (para simplicidad)
             const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
             const rifField = document.getElementById('Rif');
 
@@ -604,17 +762,12 @@
             }
         }
 
-        // NUEVA FUNCIÓN DE CÁLCULO
         function calculateNewTotal(prefix) {
-            // Asegura que los valores sean números, reemplazando comas por puntos si el usuario las usó
             const precioUnitario = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')) || 0;
             const puntos = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')) || 0;
             const total = precioUnitario * puntos;
             
-            // Actualiza el campo Total (Visualización)
             document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2);
-            
-            // Almacena el valor Total real en un campo hidden para capturarlo al guardar
             document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
         }
 
@@ -631,29 +784,24 @@
             nodeAccessButton.classList.remove('active');
             ispButton.classList.remove('active');
             
-            // 2. Resetear inputs y selecciones (Importante para evitar que se guarden datos ocultos)
+            // 2. Resetear inputs y selecciones
             
-            // Campos de Node_Acceso
-            document.getElementById('node_acceso_costo_proyectado').value = '';
-            document.getElementById('node_acceso_pago_por_realizado').value = 'Inter';
-            document.getElementById('node_acceso_pago_vgt_inter').value = '';
-            document.getElementById('node_acceso_precio_unitario').value = '';
-            document.getElementById('node_acceso_puntos').value = '';
-            document.getElementById('node_acceso_total_display').textContent = '0.00';
-            document.getElementById('node_acceso_total_hidden').value = '0.00';
-            document.getElementById('node_acceso_descripcion').value = '';
-            document.getElementById('node_acceso_abono_mensual').value = '';
+            const fieldsToReset = ['costo_proyectado', 'pago_vgt_inter', 'precio_unitario', 'puntos', 'descripcion', 'abono_mensual'];
+            const selectsToReset = ['pago_por_realizado'];
 
-            // Campos de ISP
-            document.getElementById('isp_costo_proyectado').value = '';
-            document.getElementById('isp_pago_por_realizado').value = 'Inter';
-            document.getElementById('isp_pago_vgt_inter').value = '';
-            document.getElementById('isp_precio_unitario').value = '';
-            document.getElementById('isp_puntos').value = '';
-            document.getElementById('isp_total_display').textContent = '0.00';
-            document.getElementById('isp_total_hidden').value = '0.00';
-            document.getElementById('isp_descripcion').value = '';
-            document.getElementById('isp_abono_mensual').value = '';
+            ['node_acceso', 'isp'].forEach(prefix => {
+                fieldsToReset.forEach(field => {
+                    const el = document.getElementById(`${prefix}_${field}`);
+                    if (el) el.value = '';
+                });
+                selectsToReset.forEach(field => {
+                    const el = document.getElementById(`${prefix}_${field}`);
+                    if (el) el.value = 'Inter'; // Valor por defecto
+                });
+                
+                document.getElementById(`${prefix}_total_display`).textContent = '0.00';
+                document.getElementById(`${prefix}_total_hidden`).value = '0.00';
+            });
 
 
             // 3. Mostrar la sección seleccionada
@@ -670,8 +818,8 @@
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
-            // Utilizamos la nueva función para obtener la fecha de Caracas
             const todayCaracas = getCurrentCaracasDate(); 
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
@@ -692,24 +840,20 @@
                     let onChangeEvent = '';
                     let isAutofillField = false;
 
-                    // Lógica para deshabilitar campos de autollenado (ahora usa el título con el número romano)
                     if (section.title.includes('II. Información de la Contratista')) {
-                        // Los campos autollenados deben usar su label como ID
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
                         if (autofillKeys.includes(field.label)) {
                             isDisabled = 'disabled';
                             isAutofillField = true;
                         } else if (field.type === 'autofill-select') {
-                            // Este es el campo que activa el autollenado
                             onChangeEvent = `onchange="autofillContratistaData(this)"`;
                         }
                     }
 
-                    // El ID se convierte en el LABEL para que la función autofill pueda identificarlos.
                     const fieldId = isAutofillField ? field.label : field.id; 
                     
-                    // Tratamiento de REQUIRED para los campos NO fijos/estáticos
-                    const requiredAttribute = field.required && field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' ? 'required' : '';
+                    const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
+                    const requiredAttribute = field.required && !isFixedField ? 'required' : '';
 
 
                     switch (field.type) {
@@ -721,10 +865,13 @@
                             value = otCounter;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
+                        // TIPO DE CAMPO: user-auto-fill
+                        case 'user-auto-fill':
+                            value = currentUserEmail;
+                            inputHTML = `<input type="text" value="${value}" disabled>`;
+                            break;
                         case 'date-auto':
-                            // Usamos la variable con la fecha de Caracas
                             value = todayCaracas;
-                            // Se muestra la fecha de Caracas, pero el campo sigue siendo de tipo "text" y disabled
                             inputHTML = `<input type="text" value="${value}" disabled>`; 
                             break;
                         case 'date-input':
@@ -742,7 +889,7 @@
                                 ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                             </select>`;
                             break;
-                        case 'autofill-select': // NUEVO TIPO DE LISTA
+                        case 'autofill-select': 
                             const optionsHTML = Object.keys(CONTRATISTAS_DATA).map(key => `<option value="${key}">${key}</option>`).join('');
                             inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
                                 ${optionsHTML}
@@ -784,7 +931,6 @@
         }
 
         function renderConditionalSection(prefix, title) {
-            // Se asume que todos los nuevos campos deben ser obligatorios si la sección se activa.
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
             
             return `
@@ -834,10 +980,9 @@
             `;
         }
 
-        // NUEVA FUNCIÓN DE SEGURIDAD: Limpia entradas de texto para prevenir XSS
+        // SIN CAMBIOS
         function sanitizeInput(str) {
             if (typeof str !== 'string' || !str) return str;
-            // Escapa caracteres HTML
             return str.replace(/&/g, '&amp;')
                       .replace(/</g, '&lt;')
                       .replace(/>/g, '&gt;')
@@ -854,7 +999,10 @@
             // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
             for (const section of formStructure) {
                 for (const field of section.fields) {
-                    if (!field.required || field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') continue;
+                    // user-auto-fill al listado de campos fijos
+                    const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
+                    
+                    if (!field.required || isFixed) continue;
 
                     let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
                                 ? field.label 
@@ -870,7 +1018,7 @@
                 if (firstInvalidField) break; 
             }
 
-            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
+            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
             if (!firstInvalidField && selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
@@ -910,14 +1058,14 @@
                 return;
             }
 
-            // Si pasa la validación, procedemos a guardar y generar PDF
-
             const formData = new FormData(form);
             const orderData = {};
             
-            // 4. Recopilar datos estáticos y dinámicos del formulario principal
-            const caracasDate = getCurrentCaracasDate(); // Obtenemos la fecha de Caracas aquí una vez
+            // Obtener datos fijos
+            const caracasDate = getCurrentCaracasDate(); 
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
 
+            // 4. Recopilar datos estáticos y dinámicos del formulario principal
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -926,39 +1074,33 @@
                                 : field.id;
 
                     if (field.type === 'ot_counter') value = otCounter.toString();
-                    else if (field.type === 'date-auto') {
-                        // Usamos la fecha de Caracas para la BD
-                        value = caracasDate;
-                        // Almacenamos este valor en un campo clave que el PDF usa
-                        orderData['Fecha Creación Orden Trabajo'] = value; 
-                    }
+                    // TIPO DE CAMPO: user-auto-fill
+                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
+                    else if (field.type === 'date-auto') value = caracasDate;
                     else if (field.type === 'static') value = field.value;
                     else {
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
                     
-                    // Aplicar sanitización de seguridad
                     orderData[field.label] = sanitizeInput(value) || 'N/A';
                 });
             });
             
-            // 5. NUEVA LÓGICA: Recopilar datos de la sección condicional seleccionada
+            // 5. Recopilar datos de la sección condicional seleccionada 
             orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 
-                calculateNewTotal(prefix); // Asegura que el total esté actualizado antes de guardar
+                calculateNewTotal(prefix); 
 
-                // Aplicar sanitización a los campos de la sección condicional
                 orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
                 orderData[`${prefix} | Pago por realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
                 orderData[`${prefix} | Pago x VGT a cargo de Inter`] = sanitizeInput(document.getElementById(`${prefix}_pago_vgt_inter`).value);
                 
-                // Campos de Cálculo
                 orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
-                orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); // Puntos enteros
+                orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); 
                 orderData[`${prefix} | Total (Precio Unitario x Puntos)`] = formData.get(`${prefix}_total_hidden`);
                 
                 orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value);
@@ -983,7 +1125,7 @@
 
                 // 10. Reiniciar UI
                 form.reset();
-                renderWorkOrderForm(); // Vuelve a renderizar para limpiar estados
+                renderWorkOrderForm(); 
                 renderOrdersTable(); 
                 
             } catch (e) {
@@ -999,10 +1141,8 @@
             const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'] || 'N/A';
             const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
             
-            // Texto para el encabezado de las páginas secundarias
             const secondaryHeader = `Orden de Trabajo Nro. ${otNumber}`;
 
-            // --- Contenido del Formulario (Página 1 y siguientes) ---
             let formContentHTML = `
                 <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
                     <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px;">${data['Título del Formulario']} Nro. ${otNumber}</h1>
@@ -1011,7 +1151,7 @@
             // Campos de la cabecera (Fecha de Creación)
              formContentHTML += `
                  <div style="text-align: right; margin-top: -10px; margin-bottom: 20px; font-weight: bold; color: #555;">
-                    Fecha de Emisión: ${data['Fecha Creación Orden Trabajo']}
+                    Fecha de Emisión: ${data['Fecha Actual'] || data['Fecha Creación Orden Trabajo']}
                  </div>
              `;
 
@@ -1019,15 +1159,13 @@
             // Contenido del Formulario por Secciones (Dinámicas)
             formStructure.forEach((section, secIndex) => {
                 
-                // Aplicar el estilo page-break-inside: avoid a la sección III y las secciones condicionales.
                 const breakAvoidStyle = (secIndex >= 2) ? 'style="page-break-inside: avoid;"' : ''; 
                 
-                formContentHTML += `<div ${breakAvoidStyle}>`; // <-- INICIO: Bloque con salto de página evitado.
+                formContentHTML += `<div ${breakAvoidStyle}>`; 
 
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
-                    // El valor ya está sanitizado en orderData
                     const value = data[label] || 'N/A';
                     
                     // OMISIÓN DE CAMPOS DEL ENCABEZADO
@@ -1042,21 +1180,20 @@
                     `;
                 });
                 formContentHTML += '</table>';
-                formContentHTML += `</div>`; // <-- FIN: Bloque con salto de página evitado.
+                formContentHTML += `</div>`; 
             });
             
-            // Contenido de las Secciones Condicionales (Fijas - NUEVA ESTRUCTURA)
+            // Contenido de las Secciones Condicionales (Fijas)
             const type = data['Tipo de Construcción Seleccionada'];
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                // Obtener valores de cálculo (ya sanitizados/numéricos en orderData)
                 const precioUnitario = data[`${prefix} | Precio Unitario`] || '0.00';
                 const puntos = data[`${prefix} | Puntos`] || '0';
                 const totalCalculado = data[`${prefix} | Total (Precio Unitario x Puntos)`] || '0.00';
                 
                 
-                formContentHTML += `<div style="page-break-inside: avoid;">`; // <-- INICIO: Bloque condicional con salto de página evitado.
+                formContentHTML += `<div style="page-break-inside: avoid;">`; 
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
 
                 formContentHTML += `
@@ -1064,7 +1201,6 @@
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago x VGT a cargo de Inter:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago x VGT a cargo de Inter`]}</td></tr>
                     
-                    <!-- Cálculo en una sola fila -->
                     <tr style="background-color: #e0f7fa;">
                         <td style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${precioUnitario}) x Puntos (${puntos}) = Total</td>
                         <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
@@ -1075,7 +1211,7 @@
                 `;
 
                 formContentHTML += '</table>';
-                formContentHTML += `</div>`; // <-- FIN: Bloque condicional con salto de página evitado.
+                formContentHTML += `</div>`; 
             }
 
 
@@ -1096,9 +1232,7 @@
             const element = document.createElement('div');
             element.innerHTML = formContentHTML;
             
-            // --- LÓGICA DEL ENCABEZADO REPETIDO EN PÁGINAS > 1 ---
             const opt = {
-                // Margen de 20mm (2cm)
                 margin:       20, 
                 filename:     fileName,
                 image:        { type: 'jpeg', quality: 0.98 },
@@ -1106,23 +1240,19 @@
                 jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
             };
 
-            // Usamos la propiedad `pagebreak` y `callback` para añadir el encabezado
             html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
                 const totalPages = pdf.internal.getNumberOfPages();
                 
-                // Comenzamos desde la página 2
                 for (let i = 2; i <= totalPages; i++) {
                     pdf.setPage(i);
-                    // Establecer fuente y tamaño (similar al de las secciones)
                     pdf.setFontSize(14); 
-                    pdf.setTextColor(85, 85, 85); // Un gris oscuro
+                    pdf.setTextColor(85, 85, 85); 
 
-                    // Calcular la posición (20mm desde la parte superior, 20mm desde el borde derecho - el margen)
                     const x = pdf.internal.pageSize.getWidth() - 20; 
-                    const y = 15; // 15mm desde el borde superior
+                    const y = 15; 
 
                     pdf.text(secondaryHeader, x, y, { 
-                        align: 'right' // Alinear el texto a la derecha
+                        align: 'right' 
                     });
                 }
             }).save();
@@ -1140,34 +1270,22 @@
         
         // *** 7. LÓGICA DE ELIMINACIÓN Y CONTADOR ***
 
-        /**
-         * Recalcula el contador de la próxima Orden de Trabajo (otCounter)
-         * basándose en el número más alto existente.
-         */
         function recalculateOtCounter() {
             if (workOrders.length === 0) {
                 otCounter = 1;
                 return;
             }
 
-            // Encuentra el máximo número de OT existente (convertido a entero)
             const maxOt = workOrders.reduce((max, order) => {
-                // 'Orden de Trabajo' es una cadena, la convertimos a entero
                 const currentOt = parseInt(order['Orden de Trabajo'], 10); 
                 return currentOt > max ? currentOt : max;
             }, 0); 
             
-            // El siguiente contador será el máximo existente + 1
             otCounter = maxOt + 1;
         }
 
-        /**
-         * Elimina una Orden de Trabajo de Firebase, actualiza la lista y recalcula el contador.
-         * @param {string} orderId - ID del documento en Firebase.
-         * @param {string} otNumber - Número de la Orden de Trabajo para la confirmación.
-         */
         async function deleteWorkOrder(orderId, otNumber) {
-            // La seguridad de la eliminación DEBE ser reforzada con Reglas de Seguridad de Firestore
+            // Solo Administrador puede eliminar
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes. Refuerce las reglas de seguridad de Firestore.');
                 return;
@@ -1178,19 +1296,10 @@
             }
             
             try {
-                // 1. Eliminar de Firebase
                 await ORDERS_COLLECTION.doc(orderId).delete();
-                
-                // 2. Eliminar del array local
                 workOrders = workOrders.filter(order => order.id !== orderId);
-                
-                // 3. Recalcular el contador
                 recalculateOtCounter();
-                
-                // 4. Guardar la nueva estructura/contador en Firebase
                 await saveFormStructure(false); 
-                
-                // 5. Actualizar la UI
                 renderOrdersTable();
                 renderWorkOrderForm(); 
 
@@ -1211,7 +1320,7 @@
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
                 row.insertCell().textContent = order['Título del Formulario'];
-                const creationDate = order['Fecha Creación Orden Trabajo'] || order['Fecha Actual'] || 'N/A';
+                const creationDate = order['Fecha Actual'] || order['Fecha Creación Orden Trabajo'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
                 const actionCell = row.insertCell();
@@ -1224,14 +1333,13 @@
                 downloadBtn.onclick = () => downloadOrder(order.id);
                 actionCell.appendChild(downloadBtn);
                 
-                // NUEVO: Botón de Eliminar (Solo para Admin)
+                // Botón de Eliminar (Solo para Admin)
                 if (currentRole === 'admin') {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.textContent = '🗑️ Eliminar';
                     deleteBtn.style.backgroundColor = 'var(--color-error)';
                     deleteBtn.style.color = 'white';
                     deleteBtn.style.marginLeft = '5px';
-                    // Pasar el ID del documento de Firebase y el número de OT
                     deleteBtn.onclick = () => deleteWorkOrder(order.id, order['Orden de Trabajo']);
                     actionCell.appendChild(deleteBtn);
                 }
