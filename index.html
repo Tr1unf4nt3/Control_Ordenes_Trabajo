@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
+    <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
+    <!-- LIBRERÍAS DE FIREBASE (Versión de Compatibilidad) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
@@ -198,19 +200,25 @@
 
     <div id="main-app" class="container" style="display: none;">
         
+        <!-- Pestañas de Navegación -->
         <div class="tab">
+            <!-- ID AÑADIDO: new-order-tab-button -->
             <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
+        <!-- Contenido de las Pestañas -->
+
+        <!-- Pestaña 1: Creación de Orden de Trabajo -->
         <div id="new-order" class="tabcontent">
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
         </div>
 
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
         <div id="view-orders" class="tabcontent">
             <h3>Registro Histórico de Órdenes</h3>
             <table id="orders-table">
@@ -221,6 +229,7 @@
             </table>
         </div>
 
+        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
@@ -233,13 +242,13 @@
         
         // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
-          // *** ASEGÚRATE DE QUE ESTOS VALORES SEAN LOS CORRECTOS DE TU PROYECTO ***
-          apiKey: "AIzaSyBHg18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
+          // *** CLAVE API ACTUALIZADA CON EL VALOR PROPORCIONADO POR EL USUARIO ***
+          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA", 
           authDomain: "ordenestrabajo-39eab.firebaseapp.com",
           projectId: "ordenestrabajo-39eab",
           storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
           messagingSenderId: "561184772303",
-          appId: "1:561184772303:web:765f5859b4b3a332e8277ba"
+          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -267,7 +276,9 @@
 
         // Coloque aquí todos los correos electrónicos con acceso de solo visualización
         const VIEWER_EMAILS = [
-            'jorge.basualdo@inter.com.ve', // Visualizador de ejemplo
+            'jorge.basualdo@inter.com.ve',
+            'visualizador2@empresa.com',
+            'solo.ver@tudominio.com' // Visualizador de ejemplo
         ]; 
 
         // ----------------------------------------------------------------------------------
@@ -533,6 +544,8 @@
                     errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
                 } else if (error.code === 'auth/invalid-email') {
                     errorElement.textContent = 'El formato del correo es inválido.';
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    errorElement.textContent = 'ERROR DE CONFIGURACIÓN: La Clave API de Firebase no es válida. Por favor, verifique la configuración de Firebase en el código.';
                 } else {
                     errorElement.textContent = 'Error de conexión. Intente de nuevo.';
                 }
@@ -1299,7 +1312,7 @@
                 await ORDERS_COLLECTION.doc(orderId).delete();
                 workOrders = workOrders.filter(order => order.id !== orderId);
                 recalculateOtCounter();
-                await saveFormStructure(false); 
+                await saveFormStructure(true); // Se usa true porque no debe mostrar mensaje de éxito al guardar el contador
                 renderOrdersTable();
                 renderWorkOrderForm(); 
 
