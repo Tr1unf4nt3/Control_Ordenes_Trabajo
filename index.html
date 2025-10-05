@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition</title>
+    <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     
     <style>
@@ -46,7 +47,7 @@
             margin-top: 25px;
         }
 
-        input[type="text"], input[type="password"], input[type="number"], input[type="date"], select, textarea {
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], select, textarea {
             width: 100%;
             padding: 10px;
             margin: 8px 0;
@@ -189,8 +190,8 @@
 
     <div id="login-view">
         <h2>🔒 Iniciar Sesión</h2>
-        <input type="text" id="username" placeholder="Usuario"><br>
-        <input type="password" id="password" placeholder="Contraseña"><br>
+        <input type="email" id="email" placeholder="Correo Electrónico" required><br>
+        <input type="password" id="password" placeholder="Contraseña" required><br>
         <button onclick="login()">Acceder</button>
         <p id="login-error"></p>
     </div>
@@ -242,23 +243,19 @@
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
+        
         // Referencias a las "colecciones" de la base de datos
         const ORDERS_COLLECTION = db.collection("workOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
-
+        
         // Variables de estado (ahora sincronizadas con Firebase)
         let formStructure = null; 
         let workOrders = []; 
         let otCounter = 1; 
         let currentRole = null; 
-
-        // Usuarios y Contraseñas
-        const ADMIN_USER = 'admin';
-        const ADMIN_PASS = '4dm1n**';
-        const NORMAL_USER = 'gerente';
-        const NORMAL_PASS = '1nt3r**';
-
+        
+        // <<< SE ELIMINARON LAS CONSTANTES DE USUARIOS Y CONTRASEÑAS LOCALES >>>
+        
         // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
         const CONTRATISTAS_DATA = {
             // El administrador puede agregar, modificar o eliminar contratistas aquí
@@ -266,133 +263,17 @@
                 "Apellido y Nombre del Responsable": "",
                 "Rif": ""
             },
-            " JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES  C.A": {
-                "Apellido y Nombre del Responsable": "JOHN RIVAS",
-                "Rif": "J-50507058-4"
+            "Contratista A C.A.": {
+                "Apellido y Nombre del Responsable": "Pérez Juan",
+                "Rif": "J-12345678-0"
             },
-            "CHASSERAL  C.A": {
-                "Apellido y Nombre del Responsable": "YORKFRAN PERAZA",
-                "Rif": "J-29510646-7"
+            "Servicios B, S.A.": {
+                "Apellido y Nombre del Responsable": "Gómez María",
+                "Rif": "G-98765432-1"
             },
-            "CONSERVI AJ C.A": {
-                "Apellido y Nombre del Responsable": "ALFONZO BASTARDO",
-                "Rif": "J-29548400-3"
-            },
-            "CORPORACION ACEL  C.A": {
-                "Apellido y Nombre del Responsable": "DANIEL GONCALVES",
-                "Rif": "J-30860621-9"
-            },
-            "CORPORACIÓN TORRA NET 2022  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS TORRADO",
-                "Rif": "J-50308479-0"
-            },
-            "DISTRIBUIDORA TODO EN REDES G.S.R  C.A": {
-                "Apellido y Nombre del Responsable": "GASTON BUIZA",
-                "Rif": "J-40424835-8"
-            },
-            "FIBRA INTEGRA  C.A": {
-                "Apellido y Nombre del Responsable": "MARIE ANTONIETTE DAHDAH",
-                "Rif": "J-50265450-0"
-            },
-            "G&D INTEGRAL RED 2023": {
-                "Apellido y Nombre del Responsable": "RAFAEL GOMEZ",
-                "Rif": "J-50298686-3"
-            },
-            "GLOBAL FIX C.A": {
-                "Apellido y Nombre del Responsable": "CECILIA CASTRO - JEAN PIERRE LAPARROUSAZ",
-                "Rif": "J-31189038-6"
-            },
-            "INT.TV  C.A": {
-                "Apellido y Nombre del Responsable": "RAFAEL BERNAEZ",
-                "Rif": "J-50301107-6"
-            },
-            "INVERSIONES ELECTROMTEC 2020  C.A": {
-                "Apellido y Nombre del Responsable": "IGOR REGALADO",
-                "Rif": "J-50082533-1"
-            },
-            "INVERSIONES PROYECTOS LG 721  C.A": {
-                "Apellido y Nombre del Responsable": "DOMENICO LOLLI",
-                "Rif": "J-29831930-5"
-            },
-            "INVERSIONES TELE MATIK 321 C.A": {
-                "Apellido y Nombre del Responsable": "EDICSON TORRES - KATIUSKA",
-                "Rif": "J-29867936-0"
-            },
-            "JR TECH SUPPORT  C.A": {
-                "Apellido y Nombre del Responsable": "YENSY MARTINEZ",
-                "Rif": "J-50032575-4"
-            },
-            "LG ALPHA SOLUCIONES  C.A": {
-                "Apellido y Nombre del Responsable": "GILBERTO BERNAEZ",
-                "Rif": "J-50319061-2"
-            },
-            "MULTI INVERSIONES LA LOVEREÑA C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS TOLEDO",
-                "Rif": "J-40492572-4"
-            },
-            "MULTISERVICIOS DAYRA-TEC  C.A": {
-                "Apellido y Nombre del Responsable": "MARINES GOMEZ",
-                "Rif": "J-50331914-3"
-            },
-            "PHONE MARKET STAR C.A": {
-                "Apellido y Nombre del Responsable": "NELSON MORA",
-                "Rif": "J-30919375-9"
-            },
-            "PROMOCIONES Y MERCADEO J FRANCHI C.A": {
-                "Apellido y Nombre del Responsable": "JOSE FRANCHI",
-                "Rif": "J-31574714-6"
-            },
-            "ROM-AR SERVICIOS Y MANTENIMIENTO  C.A": {
-                "Apellido y Nombre del Responsable": "ELENA RUIZ",
-                "Rif": "J-31128189-4"
-            },
-            "SERVICIOS DE TECNOLOGIA E INNOVACION (SERVITECH)  C.A": {
-                "Apellido y Nombre del Responsable": "JHOAN CELIS",
-                "Rif": "J-50028078-5"
-            },
-            "SERVICIOS INTEGRALES RFCF  C.A": {
-                "Apellido y Nombre del Responsable": "CESAR",
-                "Rif": "J-40387720-3"
-            },
-            "SERVICIOS J&G SOLUTION  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS BERNAEZ",
-                "Rif": "J-50201745-3"
-            },
-            "SERVICIOS R G C.A": {
-                "Apellido y Nombre del Responsable": "NELSON PORRA",
-                "Rif": "J-29624230-5"
-            },
-            "SERVICIOS TEALCA C.A": {
-                "Apellido y Nombre del Responsable": "FRANKLYN MENDOZA",
-                "Rif": "J-31521527-6"
-            },
-            "SERVINDRECO C.A": {
-                "Apellido y Nombre del Responsable": "OSCAR GUERRERO",
-                "Rif": "J-31347293-0"
-            },
-            "SUMINISTROS INDUSTRIALES JAMIG C.A": {
-                "Apellido y Nombre del Responsable": "MIGUEL PEREZ",
-                "Rif": "J-40990643-4"
-            },
-            "SYCO 73  C.A": {
-                "Apellido y Nombre del Responsable": "JUAN SIVIRA",
-                "Rif": "J-31762306-1"
-            },
-            "TELECOMUNICACIONES JD SISTEM  C.A": {
-                "Apellido y Nombre del Responsable": "FLAVIA GOMEZ",
-                "Rif": "J-50126527-5"
-            },
-            "TELEIBARRA CA&EC  C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS IBARRA",
-                "Rif": "J-50481799-6"
-            },
-            "W&S TECNOMARKET C.A": {
-                "Apellido y Nombre del Responsable": "YERWILL SILVA",
-                "Rif": "J-30993225-0"
-            },
-            "WV SOLUCIONES TECNO-EMPRESARIALES  C.A": {
-                "Apellido y Nombre del Responsable": "WILLIAN VALERO",
-                "Rif": "J-40973178-2"
+            "Construcciones Zulia C.L.": {
+                "Apellido y Nombre del Responsable": "López Carlos",
+                "Rif": "C-11223344-5"
             }
         };
 
@@ -419,9 +300,7 @@
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     
                     // Lógica de Migración: si los títulos guardados no tienen los números romanos, los agregamos.
-                    // Esto asegura que las estructuras antiguas se actualicen automáticamente.
                     if (formStructure.length >= 3) {
-                         // Asumo que la longitud y el orden de los títulos fijos es el correcto
                          if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
                          if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
                          if (formStructure[2].title === "Información del Trabajo/Obra" || formStructure[2].title === "III. Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
@@ -464,39 +343,54 @@
             }
         }
         
-        // *** 3. LÓGICA DE LOGIN Y PESTAÑAS ***
+        // *** 3. LÓGICA DE LOGIN Y PESTAÑAS (MODIFICADA PARA FIREBASE AUTH) ***
         
-        function login() {
-            const user = document.getElementById('username').value;
+        // MODIFICADA: Usa Firebase Authentication
+        async function login() {
+            const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const errorElement = document.getElementById('login-error');
             errorElement.textContent = '';
-
-            let role = null;
-            if (user === ADMIN_USER && pass === ADMIN_PASS) {
-                role = 'admin';
-            } else if (user === NORMAL_USER && pass === NORMAL_PASS) {
-                role = 'normal';
-            }
-
-            if (role) {
-                currentRole = role; // Almacena el rol globalmente
-                sessionStorage.setItem('userRole', role);
+            
+            // 1. Intenta iniciar sesión con Firebase Auth
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+                const user = userCredential.user;
+                
+                // 2. Determinar el rol basado en el email (DEBE COINCIDIR CON LA CUENTA CREADA EN FIREBASE)
+                // Usar 'admin@tudominio.com' como el email que identifica al administrador
+                let role = (user.email === 'admin@tudominio.com') ? 'admin' : 'normal'; 
+                
+                currentRole = role;
+                // YA NO USAMOS sessionStorage para el rol, el listener de Auth lo gestiona
+                
                 document.getElementById('login-view').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 initializeApp(role);
-            } else {
-                errorElement.textContent = 'Usuario o contraseña incorrectos.';
+                
+            } catch (error) {
+                console.error("Error de autenticación:", error.code, error.message);
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorElement.textContent = 'El formato del correo es inválido.';
+                } else {
+                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
+                }
             }
         }
 
+        // MODIFICADA: Usa Firebase SignOut
         function logout() {
-            sessionStorage.removeItem('userRole');
-            currentRole = null;
-            document.getElementById('main-app').style.display = 'none';
-            document.getElementById('login-view').style.display = 'block';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
+            firebase.auth().signOut().then(() => {
+                // El onAuthStateChanged se encargará de ocultar la app y mostrar el login
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                alert('Sesión cerrada correctamente.');
+            }).catch((error) => {
+                console.error("Error al cerrar sesión:", error);
+                alert('Error al cerrar sesión.');
+            });
         }
 
         async function initializeApp(role) {
@@ -514,13 +408,26 @@
             renderOrdersTable();
         }
 
+        // MODIFICADA: Usa el listener de Firebase Auth
         window.onload = function() {
-            const role = sessionStorage.getItem('userRole');
-            if (role) {
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('main-app').style.display = 'block';
-                initializeApp(role);
-            }
+            // Listener de estado de autenticación de Firebase
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    // El usuario está logueado
+                    // Determinar rol basado en email
+                    let role = (user.email === 'admin@tudominio.com') ? 'admin' : 'normal';
+                    currentRole = role;
+                    
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    initializeApp(role);
+                } else {
+                    // El usuario no está logueado
+                    currentRole = null;
+                    document.getElementById('main-app').style.display = 'none';
+                    document.getElementById('login-view').style.display = 'block';
+                }
+            });
         }
         
         function openTab(evt, tabName) {
@@ -912,12 +819,24 @@
             `;
         }
 
+        // NUEVA FUNCIÓN DE SEGURIDAD: Limpia entradas de texto para prevenir XSS
+        function sanitizeInput(str) {
+            if (typeof str !== 'string' || !str) return str;
+            // Escapa caracteres HTML
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
+
         async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
 
-            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS (Mantener)
+            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
             for (const section of formStructure) {
                 for (const field of section.fields) {
                     if (!field.required || field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto') continue;
@@ -936,7 +855,7 @@
                 if (firstInvalidField) break; 
             }
 
-            // 2. NUEVA VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
+            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL (solo si está ACTIVA)
             if (!firstInvalidField && selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
@@ -950,14 +869,12 @@
                 ];
 
                 for (const campo of camposCondicionales) {
-                    // Validar que los campos de texto/select tengan valor
                     if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA') {
                         if (!campo.value.trim()) {
                             firstInvalidField = campo;
                             break;
                         }
                     } 
-                    // Validar que los campos numéricos sean números positivos
                     else if (campo.type === 'number') {
                         const numericValue = parseFloat(campo.value.replace(',', '.'));
                         if (isNaN(numericValue) || numericValue < 0) {
@@ -1006,7 +923,8 @@
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
                     
-                    orderData[field.label] = value || 'N/A';
+                    // Aplicar sanitización de seguridad
+                    orderData[field.label] = sanitizeInput(value) || 'N/A';
                 });
             });
             
@@ -1018,17 +936,18 @@
                 
                 calculateNewTotal(prefix); // Asegura que el total esté actualizado antes de guardar
 
-                orderData[`${prefix} | Costo Proyectado de la Obra`] = document.getElementById(`${prefix}_costo_proyectado`).value;
-                orderData[`${prefix} | Pago por realizado por`] = document.getElementById(`${prefix}_pago_por_realizado`).value;
-                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = document.getElementById(`${prefix}_pago_vgt_inter`).value;
+                // Aplicar sanitización a los campos de la sección condicional
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
+                orderData[`${prefix} | Pago por realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
+                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = sanitizeInput(document.getElementById(`${prefix}_pago_vgt_inter`).value);
                 
                 // Campos de Cálculo
                 orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
                 orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); // Puntos enteros
                 orderData[`${prefix} | Total (Precio Unitario x Puntos)`] = formData.get(`${prefix}_total_hidden`);
                 
-                orderData[`${prefix} | Descripción`] = document.getElementById(`${prefix}_descripcion`).value;
-                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = document.getElementById(`${prefix}_abono_mensual`).value;
+                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value);
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value);
             }
 
 
@@ -1042,9 +961,7 @@
                 otCounter++;
                 
                 // 8. Guardar la nueva estructura/contador
-                await saveFormStructure(true); // Se usa 'true' para no mostrar el alert de "Guardado exitoso" después de cada orden.
-                                               // La función saveFormStructure llama a renderWorkOrderForm si initial es false, pero aquí 
-                                               // no queremos el alert, así que lo manejamos manualmente al final.
+                await saveFormStructure(true); 
 
                 // 9. Generar PDF
                 generatePDF(orderData);
@@ -1088,8 +1005,6 @@
             formStructure.forEach((section, secIndex) => {
                 
                 // Aplicar el estilo page-break-inside: avoid a la sección III y las secciones condicionales.
-                // Esto ayuda a que una sección entera se mueva si no cabe, evitando cortes.
-                // Se aplica a partir del índice 2 (la sección III. Información del Trabajo/Obra)
                 const breakAvoidStyle = (secIndex >= 2) ? 'style="page-break-inside: avoid;"' : ''; 
                 
                 formContentHTML += `<div ${breakAvoidStyle}>`; // <-- INICIO: Bloque con salto de página evitado.
@@ -1097,6 +1012,7 @@
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
+                    // El valor ya está sanitizado en orderData
                     const value = data[label] || 'N/A';
                     
                     // OMISIÓN DE CAMPOS DEL ENCABEZADO
@@ -1119,7 +1035,7 @@
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                // Obtener valores de cálculo
+                // Obtener valores de cálculo (ya sanitizados/numéricos en orderData)
                 const precioUnitario = data[`${prefix} | Precio Unitario`] || '0.00';
                 const puntos = data[`${prefix} | Puntos`] || '0';
                 const totalCalculado = data[`${prefix} | Total (Precio Unitario x Puntos)`] || '0.00';
@@ -1186,7 +1102,6 @@
                     pdf.setTextColor(85, 85, 85); // Un gris oscuro
 
                     // Calcular la posición (20mm desde la parte superior, 20mm desde el borde derecho - el margen)
-                    // La posición Y debe estar dentro del margen superior de 20mm
                     const x = pdf.internal.pageSize.getWidth() - 20; 
                     const y = 15; // 15mm desde el borde superior
 
@@ -1236,8 +1151,9 @@
          * @param {string} otNumber - Número de la Orden de Trabajo para la confirmación.
          */
         async function deleteWorkOrder(orderId, otNumber) {
+            // La seguridad de la eliminación DEBE ser reforzada con Reglas de Seguridad de Firestore
             if (currentRole !== 'admin') {
-                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes.');
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes. Refuerce las reglas de seguridad de Firestore.');
                 return;
             }
 
@@ -1256,7 +1172,6 @@
                 recalculateOtCounter();
                 
                 // 4. Guardar la nueva estructura/contador en Firebase
-                // Usamos 'false' para que se muestre el alert de "Guardado exitoso" si es necesario
                 await saveFormStructure(false); 
                 
                 // 5. Actualizar la UI
