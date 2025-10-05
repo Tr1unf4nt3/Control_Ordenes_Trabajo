@@ -438,6 +438,9 @@
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                // Asegurar que el contador esté correcto al inicio
+                recalculateOtCounter();
+
             } catch (e) {
                 console.error("Error cargando datos iniciales: ", e);
                 alert("Error al conectar con la base de datos. Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
@@ -1039,7 +1042,9 @@
                 otCounter++;
                 
                 // 8. Guardar la nueva estructura/contador
-                await saveFormStructure(false); 
+                await saveFormStructure(true); // Se usa 'true' para no mostrar el alert de "Guardado exitoso" después de cada orden.
+                                               // La función saveFormStructure llama a renderWorkOrderForm si initial es false, pero aquí 
+                                               // no queremos el alert, así que lo manejamos manualmente al final.
 
                 // 9. Generar PDF
                 generatePDF(orderData);
@@ -1161,7 +1166,7 @@
             
             // --- LÓGICA DEL ENCABEZADO REPETIDO EN PÁGINAS > 1 ---
             const opt = {
-                // MODIFICACIÓN 2: Margen incrementado a 20mm (2cm)
+                // Margen de 20mm (2cm)
                 margin:       20, 
                 filename:     fileName,
                 image:        { type: 'jpeg', quality: 0.98 },
@@ -1181,8 +1186,9 @@
                     pdf.setTextColor(85, 85, 85); // Un gris oscuro
 
                     // Calcular la posición (20mm desde la parte superior, 20mm desde el borde derecho - el margen)
+                    // La posición Y debe estar dentro del margen superior de 20mm
                     const x = pdf.internal.pageSize.getWidth() - 20; 
-                    const y = 20; 
+                    const y = 15; // 15mm desde el borde superior
 
                     pdf.text(secondaryHeader, x, y, { 
                         align: 'right' // Alinear el texto a la derecha
@@ -1201,6 +1207,70 @@
             }
         }
         
+        // *** 7. LÓGICA DE ELIMINACIÓN Y CONTADOR ***
+
+        /**
+         * Recalcula el contador de la próxima Orden de Trabajo (otCounter)
+         * basándose en el número más alto existente.
+         */
+        function recalculateOtCounter() {
+            if (workOrders.length === 0) {
+                otCounter = 1;
+                return;
+            }
+
+            // Encuentra el máximo número de OT existente (convertido a entero)
+            const maxOt = workOrders.reduce((max, order) => {
+                // 'Orden de Trabajo' es una cadena, la convertimos a entero
+                const currentOt = parseInt(order['Orden de Trabajo'], 10); 
+                return currentOt > max ? currentOt : max;
+            }, 0); 
+            
+            // El siguiente contador será el máximo existente + 1
+            otCounter = maxOt + 1;
+        }
+
+        /**
+         * Elimina una Orden de Trabajo de Firebase, actualiza la lista y recalcula el contador.
+         * @param {string} orderId - ID del documento en Firebase.
+         * @param {string} otNumber - Número de la Orden de Trabajo para la confirmación.
+         */
+        async function deleteWorkOrder(orderId, otNumber) {
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes.');
+                return;
+            }
+
+            if (!confirm(`¿Está seguro de que desea eliminar la Orden de Trabajo Nro. ${otNumber}? Esta acción es irreversible y ajustará el contador.`)) {
+                return;
+            }
+            
+            try {
+                // 1. Eliminar de Firebase
+                await ORDERS_COLLECTION.doc(orderId).delete();
+                
+                // 2. Eliminar del array local
+                workOrders = workOrders.filter(order => order.id !== orderId);
+                
+                // 3. Recalcular el contador
+                recalculateOtCounter();
+                
+                // 4. Guardar la nueva estructura/contador en Firebase
+                // Usamos 'false' para que se muestre el alert de "Guardado exitoso" si es necesario
+                await saveFormStructure(false); 
+                
+                // 5. Actualizar la UI
+                renderOrdersTable();
+                renderWorkOrderForm(); 
+
+                alert(`✅ Orden de Trabajo Nro. ${otNumber} eliminada y contador actualizado a ${otCounter}.`);
+
+            } catch (e) {
+                console.error("Error al eliminar la orden:", e);
+                alert("Error al eliminar la Orden de Trabajo de Firebase. Detalles: " + e.message);
+            }
+        }
+
 
         function renderOrdersTable() {
             const tbody = document.getElementById('orders-table').querySelector('tbody');
@@ -1214,12 +1284,26 @@
                 row.insertCell().textContent = creationDate;
                 
                 const actionCell = row.insertCell();
+                
+                // Botón de Descarga PDF
                 const downloadBtn = document.createElement('button');
                 downloadBtn.textContent = '⬇️ PDF';
                 downloadBtn.style.backgroundColor = '#77DD77'; 
                 downloadBtn.style.color = 'white';
                 downloadBtn.onclick = () => downloadOrder(order.id);
                 actionCell.appendChild(downloadBtn);
+                
+                // NUEVO: Botón de Eliminar (Solo para Admin)
+                if (currentRole === 'admin') {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '🗑️ Eliminar';
+                    deleteBtn.style.backgroundColor = 'var(--color-error)';
+                    deleteBtn.style.color = 'white';
+                    deleteBtn.style.marginLeft = '5px';
+                    // Pasar el ID del documento de Firebase y el número de OT
+                    deleteBtn.onclick = () => deleteWorkOrder(order.id, order['Orden de Trabajo']);
+                    actionCell.appendChild(deleteBtn);
+                }
             });
         }
 
