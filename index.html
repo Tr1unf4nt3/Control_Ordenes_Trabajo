@@ -3,328 +3,1145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Órdenes de Trabajo Atómicas</title>
-    <!-- Carga de Tailwind CSS para un estilo moderno y responsivo -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-blue': '#1e40af',
-                        'primary-light': '#eff6ff',
-                        'accent-orange': '#f97316',
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
+    <title>Sistema de Órdenes de Trabajo | Gestión de Estados</title>
+    <!-- Librería para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    
+    <!-- LIBRERÍAS DE FIREBASE (Versión de Compatibilidad) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <!-- Se requiere una versión 9.6.0 para usar FieldValue.increment en compat-mode -->
+    <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script> 
+    
     <style>
+        /* Paleta de colores Pastel Azul/Gris */
+        :root {
+            --color-bg: #F0F8FF;      /* Azul muy claro (Alice Blue) */
+            --color-primary: #ADD8E6;  /* Azul claro (Light Blue) */
+            --color-secondary: #B0C4DE; /* Azul grisáceo (Light Steel Blue) */
+            --color-accent: #87CEFA;   /* Azul cielo claro (Light Sky Blue) */
+            --color-text: #36454F;     /* Gris carbón (Charcoal) */
+            --color-white: #ffffff;
+            --color-error: #FF6961;    /* Rojo pastel para errores */
+            --color-success: #77DD77;  /* Verde pastel para éxito */
+            --color-warning: #FFD700;  /* Amarillo/Oro para advertencias */
+            --color-status-progress: #87CEFA;
+            --color-status-completed: #77DD77;
+            --color-status-cancelled: #FF6961;
+        }
+
+        /* Estilos Generales (Diseño Pastel) */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 20px;
         }
+
         .container {
-            max-width: 900px;
+            max-width: 1300px;
             margin: 0 auto;
-            padding: 1.5rem;
+            background-color: var(--color-white);
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
         }
-        /* Estilo para los botones */
-        .btn-primary {
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+        h2, h3, h4 {
+            color: var(--color-text);
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 5px;
+            margin-top: 25px;
         }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: var(--color-white);
         }
-        .loader {
-            border-top-color: #3498db;
-            -webkit-animation: spinner 1.5s linear infinite;
-            animation: spinner 1.5s linear infinite;
+
+        input:disabled { background-color: #f0f0f0; border: 1px dashed var(--color-secondary); }
+        input:invalid:not(:placeholder-shown), select:invalid:not(:placeholder-shown), textarea:invalid:not(:placeholder-shown) { border: 2px solid var(--color-error); }
+        .form-section { border: 1px solid var(--color-secondary); border-radius: 8px; padding: 20px; margin-bottom: 25px; background-color: #f7fbff; }
+        .calculation-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--color-secondary); border-radius: 6px; padding: 15px; margin-top: 15px; background-color: #e0f7fa; }
+        .calculation-total-section { display: flex; align-items: center; width: 100%; margin-top: 10px; }
+        .calculation-total-section label { font-weight: bold; flex-basis: auto; margin-right: 15px; white-space: nowrap; }
+        .total-display { background-color: var(--color-white); font-weight: bold; text-align: right; border: 1px dashed var(--color-accent); padding: 10px; border-radius: 6px; flex-grow: 1; }
+        .calculation-input { flex-basis: calc(45% - 20px); } 
+        .calculation-group .formula-symbol { font-size: 1.5em; font-weight: bold; margin-left: 5px; margin-right: 5px; }
+
+        button {
+            background-color: var(--color-accent);
+            color: var(--color-text);
+            padding: 10px 20px;
+            margin: 8px 5px 8px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            white-space: nowrap; /* Evita que los botones del tab se rompan */
         }
-        @-webkit-keyframes spinner {
-            0% { -webkit-transform: rotate(0deg); }
-            100% { -webkit-transform: rotate(360deg); }
+        button:hover { background-color: var(--color-primary); }
+        .conditional-check { background-color: var(--color-secondary); color: var(--color-white); font-weight: bold; padding: 15px; margin-bottom: 10px; display: block; text-align: left; }
+        .conditional-check.active { background-color: var(--color-success); }
+
+
+        /* Layout de Pestañas */
+        .tab { overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--color-secondary); margin-bottom: 20px; padding-bottom: 5px;}
+        .tablinks { background-color: var(--color-bg); color: var(--color-text); display: inline-block; border: none; outline: none; cursor: pointer; padding: 14px 20px; transition: 0.3s; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .tablinks:hover { background-color: var(--color-primary); }
+        .tablinks.active { background-color: var(--color-primary); border-bottom: 3px solid var(--color-accent); margin-bottom: -1px; }
+        .tabcontent { display: none; padding: 30px 0; }
+        .field-editor-item { border: 1px dashed var(--color-secondary); border-radius: 6px; padding: 15px; margin-bottom: 10px; background-color: var(--color-white); }
+        .required-fixed-field { padding: 10px; background-color: var(--color-secondary); color: var(--color-white); border-radius: 4px; margin-bottom: 10px; }
+        
+        /* Estilos para la tabla */
+        #orders-table, .status-table { width: 100%; border-collapse: collapse; }
+        #orders-table th, #orders-table td, .status-table th, .status-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
+        #orders-table th, .status-table th { background-color: var(--color-primary); color: var(--color-text); }
+        #orders-table tr:nth-child(even), .status-table tr:nth-child(even) { background-color: var(--color-bg); }
+        #orders-table tr:hover, .status-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
+
+        /* Etiqueta de Estado */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-weight: bold;
+            color: var(--color-white);
+            font-size: 0.85em;
         }
-        @keyframes spinner {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .status-EnProgreso { background-color: var(--color-status-progress); }
+        .status-Finalizada { background-color: var(--color-status-completed); }
+        .status-Cancelada { background-color: var(--color-status-cancelled); }
+
+        /* Login View */
+        #login-view { width: 350px; padding: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--color-white); border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); text-align: center; }
+        #login-error { color: var(--color-error); font-weight: bold; }
+        
+        /* Estilos para Modales (Ventanas Flotantes NO transparentes) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Oscurece el fondo */
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
+        .modal-content {
+            background-color: var(--color-white);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .modal-content h3 {
+            border-bottom: 2px solid var(--color-accent);
+        }
+
+        /* Estilos específicos para el PDF de constancia */
+        .pdf-signatures {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px dashed #B0C4DE;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .pdf-signatures span {
+            display: inline-block;
+            width: 45%;
+        }
+        .pdf-signatures hr {
+            border: none;
+            border-top: 1px solid #36454F;
+            margin: 5px 0 0 0;
+        }
+        .pdf-header-secondary {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            font-size: 14px;
+            color: #555;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <header class="text-center py-6 bg-white rounded-xl shadow-lg mb-6">
-        <h1 class="text-3xl font-bold text-primary-blue">Sistema de Generación de Órdenes de Trabajo</h1>
-        <p class="text-gray-600 mt-2">Uso de Transacciones Atómicas para Numeración Segura</p>
-        <p class="text-sm text-accent-orange mt-1">El ID de usuario es esencial para el almacenamiento privado: <span id="current-user-id" class="font-mono bg-primary-light px-2 py-1 rounded">Cargando...</span></p>
-    </header>
-
-    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Panel de Creación -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Crear Nueva Orden de Trabajo</h2>
+    <!-- MODAL DE INFORMACIÓN DETALLADA (Finalización/Cancelación) -->
+    <div id="status-modal-overlay" class="modal-overlay" onclick="closeStatusModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="modal-title">Información Detallada</h3>
+            <p id="modal-order-info"></p>
             
-            <div class="mb-4">
-                <label for="work-description" class="block text-sm font-medium text-gray-700 mb-1">Descripción del Trabajo</label>
-                <textarea id="work-description" rows="3" class="w-full border-2 border-gray-300 rounded-lg p-3 focus:ring-primary-blue focus:border-primary-blue transition duration-150" placeholder="Construcción Nodo de Acceso, Altamira, Torre A..."></textarea>
-            </div>
+            <label for="detail-info">Información Detallada:</label>
+            <textarea id="detail-info" rows="6" required placeholder="Escriba aquí los detalles de la finalización o cancelación."></textarea>
             
-            <button id="create-order-btn" class="w-full flex items-center justify-center bg-primary-blue text-white font-bold py-3 px-4 rounded-lg btn-primary hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-primary-blue focus:ring-opacity-50" onclick="createWorkOrder()">
-                <span id="btn-text">Generar Orden de Trabajo (Usando Transacción)</span>
-                <div id="btn-loader" class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 ml-2 hidden"></div>
-            </button>
-            
-            <div id="message-box" class="mt-4 p-3 rounded-lg text-center font-medium hidden"></div>
-        </div>
-
-        <!-- Panel de Historial (Tiempo Real) -->
-        <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Historial de Órdenes</h2>
-            <div id="work-orders-list" class="space-y-3 max-h-96 overflow-y-auto">
-                <p class="text-gray-500 text-sm italic">Cargando órdenes...</p>
+            <div style="text-align: right; margin-top: 20px;">
+                <button onclick="closeStatusModal()" style="background-color: var(--color-secondary);">Retroceder</button>
+                <button id="modal-action-button" onclick="executeStatusAction()" style="background-color: var(--color-success);">Aceptar</button>
             </div>
         </div>
-
-    </main>
-</div>
-
-<!-- Firebase SDKs -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, setDoc, runTransaction, query, orderBy, limit, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- Variables Globales Proporcionadas por el Entorno ---
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    </div>
     
-    if (!firebaseConfig) {
-        console.error("Firebase config not available.");
-        document.getElementById('message-box').classList.add('bg-red-100', 'text-red-700');
-        document.getElementById('message-box').innerText = "ERROR: Configuración de Firebase no disponible.";
-        document.getElementById('message-box').classList.remove('hidden');
-    }
-
-    // --- Inicialización y Autenticación ---
-    let app, db, auth, userId = null;
-    let isAuthReady = false;
-
-    // Inicializa la aplicación Firebase
-    if (firebaseConfig) {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        setLogLevel('debug'); // Para ver logs en la consola
-        window.db = db; // Hacer db accesible globalmente para createWorkOrder
-    }
+    <!-- MODAL DE MENSAJE PERSONALIZADO (Reemplaza a alert/confirm) -->
+    <div id="message-modal-overlay" class="modal-overlay" onclick="closeMessageModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="message-modal-title">Mensaje del Sistema</h3>
+            <p id="message-modal-text"></p>
+            <div style="text-align: right; margin-top: 20px;">
+                <button id="message-modal-confirm" onclick="closeMessageModal(true)" style="background-color: var(--color-success); display: none;">Aceptar</button>
+                <button id="message-modal-cancel" onclick="closeMessageModal(false)" style="background-color: var(--color-error); display: none;">Cancelar</button>
+                <button id="message-modal-ok" onclick="closeMessageModal(true)" style="background-color: var(--color-accent);">De Acuerdo</button>
+            </div>
+        </div>
+    </div>
     
-    // Función para manejar la autenticación
-    async function handleAuthentication() {
-        try {
-            if (initialAuthToken) {
-                await signInWithCustomToken(auth, initialAuthToken);
-            } else {
-                await signInAnonymously(auth);
-            }
-        } catch (error) {
-            console.error("Error de autenticación:", error);
-        }
-    }
+    <div id="login-view">
+        <h2>🔒 Iniciar Sesión</h2>
+        <input type="email" id="email" placeholder="Correo Electrónico" required><br>
+        <input type="password" id="password" placeholder="Contraseña" required><br>
+        <button onclick="login()">Acceder</button>
+        <p id="login-error"></p>
+    </div>
 
-    // Listener del estado de autenticación
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            userId = user.uid;
-            document.getElementById('current-user-id').textContent = userId;
-            isAuthReady = true;
-            console.log("Usuario autenticado. UID:", userId);
-            setupRealtimeListener();
-        } else {
-            // Esto solo pasa si signInAnonymously falla, pero se intenta asegurar
-            userId = crypto.randomUUID();
-            document.getElementById('current-user-id').textContent = userId + " (Anónimo)";
-            isAuthReady = true;
-            console.log("Autenticación no completada, usando ID aleatorio:", userId);
-            setupRealtimeListener();
-        }
-    });
-
-    handleAuthentication();
-
-    // --- Lógica de la Base de Datos ---
-
-    // La colección de Órdenes de Trabajo y el contador están en la ruta pública para que todas las vean.
-    const WORK_ORDERS_PATH = `artifacts/${appId}/public/data/workOrders`;
-    const COUNTER_DOC_PATH = `artifacts/${appId}/public/data/counters/workOrderCounter`;
-
-    /**
-     * Usa una transacción atómica para obtener el siguiente número de orden.
-     * Esto PREVIENE que dos usuarios obtengan el mismo número (race condition)
-     * y es la solución para números saltados por errores de concurrencia.
-     * @returns {Promise<number>} El número de orden de trabajo incrementado.
-     */
-    async function getNextWorkOrderNumber() {
-        if (!db) throw new Error("Firestore no está inicializado.");
+    <div id="main-app" class="container" style="display: none;">
         
-        const counterRef = doc(db, COUNTER_DOC_PATH);
-        let nextNumber;
+        <!-- Pestañas de Navegación -->
+        <div class="tab">
+            <!-- Pestañas de Creación y Visualización -->
+            <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva OT</button>
+            <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
+            
+            <!-- Pestañas de Flujo de Estados (Comunes) -->
+            <button class="tablinks" onclick="openTab(event, 'finalize-orders')">✅ Finalización de Órdenes</button>
+            <button class="tablinks" onclick="openTab(event, 'finished-orders')">🟢 Órdenes Finalizadas</button>
+            <button class="tablinks" onclick="openTab(event, 'cancel-orders')">❌ Cancelación de Órdenes</button>
+            <button class="tablinks" onclick="openTab(event, 'cancelled-orders')">🔴 Órdenes Canceladas</button>
 
-        try {
-            // La transacción garantiza que todas las operaciones se completen
-            // antes de que otra transacción pueda modificarlas.
-            await runTransaction(db, async (transaction) => {
-                const counterDoc = await transaction.get(counterRef);
+            <!-- Pestañas de Administración (Solo Admin) -->
+            <button class="tablinks" id="admin-status-tab-button" onclick="openTab(event, 'admin-status-change')" style="display: none;">🔄 Cambio de Estado (Admin)</button>
+            <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
+            
+            <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
+        </div>
 
-                if (!counterDoc.exists()) {
-                    // Inicializar el contador si no existe (la primera Orden será la 1)
-                    nextNumber = 1;
-                    transaction.set(counterRef, { currentValue: nextNumber });
-                    console.log("Contador inicializado a 1.");
+        <!-- Contenido de las Pestañas -->
+
+        <!-- Pestaña 1: Creación de Orden de Trabajo -->
+        <div id="new-order" class="tabcontent">
+            <h3>Nueva Orden de Trabajo</h3>
+            <form id="work-order-form"></form>
+            <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
+        </div>
+
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo (Todas las OT) -->
+        <div id="view-orders" class="tabcontent">
+            <h3>Registro Histórico de Órdenes (Todas)</h3>
+            <table id="orders-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Estado</th><th>Fecha Creación</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 3: Finalización de Órdenes (Solo En Progreso) -->
+        <div id="finalize-orders" class="tabcontent">
+            <h3>Finalización de Órdenes: <span class="status-badge status-EnProgreso">En Progreso</span></h3>
+            <table class="status-table" id="finalize-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acción</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 4: Órdenes Finalizadas -->
+        <div id="finished-orders" class="tabcontent">
+            <h3>Registro de Órdenes <span class="status-badge status-Finalizada">Finalizadas</span></h3>
+            <table class="status-table" id="finished-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Finalización</th><th>Usuario</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 5: Cancelación de Órdenes (Solo En Progreso) -->
+        <div id="cancel-orders" class="tabcontent">
+            <h3>Cancelación de Órdenes: <span class="status-badge status-EnProgreso">En Progreso</span></h3>
+            <table class="status-table" id="cancel-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acción</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Pestaña 6: Órdenes Canceladas -->
+        <div id="cancelled-orders" class="tabcontent">
+            <h3>Registro de Órdenes <span class="status-badge status-Cancelada">Canceladas</span></h3>
+            <table class="status-table" id="cancelled-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Cancelación</th><th>Usuario</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 7: Cambio de Estado (Solo Admin) -->
+        <div id="admin-status-change" class="tabcontent">
+            <h3>Cambio de Estado <span class="status-badge status-Finalizada">Finalizada</span> / <span class="status-badge status-Cancelada">Cancelada</span> (Administrador)</h3>
+            <p>Seleccione una orden para revertir su estado a <span class="status-badge status-EnProgreso">En Progreso</span>.</p>
+            <table class="status-table" id="admin-status-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Estado Actual</th><th>Acción</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 8: Edición de Formulario (Solo Administrador) -->
+        <div id="edit-form" class="tabcontent">
+            <h3>Edición de Formulario</h3>
+            <div id="form-editor"></div>
+            <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
+        </div>
+    </div>
+    
+    <script>
+        // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
+        
+        // Uso de variables globales proporcionadas por el entorno de Canvas (aunque el user pegó la config directa)
+        // Mantenemos la estructura de inicialización usando compat-mode de Firebase v9.
+        const providedAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const providedFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* Fallback config */ };
+
+        // El usuario ha pegado una configuración específica; la usaremos directamente por si no está en el entorno.
+        const firebaseConfig = {
+             apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA", 
+             authDomain: "ordenestrabajo-39eab.firebaseapp.com",
+             projectId: "ordenestrabajo-39eab",
+             storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
+             messagingSenderId: "561184772303",
+             appId: "1:561184772303:web:765f5859b4b3a332e827ba"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        const ORDERS_COLLECTION = db.collection("workOrders");
+        const CONFIG_COLLECTION = db.collection("config"); 
+        
+        let formStructure = null; 
+        let workOrders = []; 
+        let otCounter = 1; // El valor actual para la siguiente OT
+        let currentRole = null; 
+        let currentOrderToModify = null; // Para guardar la OT seleccionada en el modal
+        let currentResolve = null; // Para manejar la promesa del modal de mensaje
+
+        // Roles
+        const ADMIN_EMAILS = ['labortradingsg@gmail.com', 'admin.secundario@tudominio.com']; 
+        const VIEWER_EMAILS = ['visualizador1@empresa.com', 'visualizador2@empresa.com', 'solo.ver@tudominio.com']; 
+        
+        // Datos Fijos
+        const CONTRATISTAS_DATA = {
+            "Seleccione una Empresa": { "Apellido y Nombre del Responsable": "", "Rif": "" },
+            "Contratista A C.A.": { "Apellido y Nombre del Responsable": "Pérez Juan", "Rif": "J-12345678-0" },
+            "Servicios B, S.A.": { "Apellido y Nombre del Responsable": "Gómez María", "Rif": "G-98765432-1" },
+            "Construcciones Zulia C.L.": { "Apellido y Nombre del Responsable": "López Carlos", "Rif": "C-11223344-5" }
+        };
+
+        const DEFAULT_FORM_STRUCTURE = [
+            { title: "I. Información General", fields: [
+                { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
+                { id: "ot_number", label: "Orden de Trabajo Nro.", type: "ot_counter", required: true },
+                { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
+                { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
+            ]},
+            { title: "II. Información de la Contratista", fields: []},
+            { title: "III. Información del Trabajo/Obra", fields: []}
+        ];
+        
+        function getDataLabel(data, newLabel, oldLabel) {
+            return data[newLabel] !== undefined ? data[newLabel] : (data[oldLabel] !== undefined ? data[oldLabel] : 'N/A (Etiqueta Antigua)');
+        }
+
+        // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
+
+        async function loadInitialData() {
+            try {
+                const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
+                if (configDoc.exists) {
+                    const data = configDoc.data();
+                    formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
+                    
+                    // FIX PRINCIPAL: Cargar el contador del DB, este es la ÚNICA fuente de verdad
+                    otCounter = data.otCounter || 1; 
+                    
+                    // Lógica de Migración (Asegurar campos fijos nuevos)
+                    const infoGeneralFields = formStructure[0].fields;
+                    const hasUserField = infoGeneralFields.some(f => f.id === 'user_auto_fill');
+                    if (!hasUserField) {
+                         const dateIndex = infoGeneralFields.findIndex(f => f.id === 'current_date');
+                         if (dateIndex !== -1) {
+                             infoGeneralFields.splice(dateIndex, 0, DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         } else {
+                             infoGeneralFields.push(DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         }
+                    }
+
+                    if (formStructure.length >= 3) {
+                         if (!formStructure[0].title.startsWith("I.")) formStructure[0].title = "I. Información General";
+                         if (!formStructure[1].title.startsWith("II.")) formStructure[1].title = "II. Información de la Contratista";
+                         if (!formStructure[2].title.startsWith("III.")) formStructure[2].title = "III. Información del Trabajo/Obra";
+                    }
+
                 } else {
-                    // Si existe, lo incrementamos
-                    const current = counterDoc.data().currentValue;
-                    nextNumber = current + 1;
-                    transaction.update(counterRef, { currentValue: nextNumber });
-                    console.log("Contador incrementado de", current, "a", nextNumber);
+                    formStructure = DEFAULT_FORM_STRUCTURE;
+                    await saveFormStructure(true); 
+                }
+                
+                // Cargar Órdenes de Trabajo y escuchar cambios en tiempo real
+                ORDERS_COLLECTION.onSnapshot(snapshot => {
+                    workOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // REMOVIDO: recalculateOtCounter(); <-- ELIMINADO para evitar conflictos
+                    renderAllTables();
+                    renderWorkOrderForm(); // Re-renderizar el formulario para asegurar que el otCounter se muestre correctamente.
+                }, error => {
+                    console.error("Error al escuchar órdenes:", error);
+                    showErrorMessage("Error en la conexión a la base de datos en tiempo real.", error.message);
+                });
+
+
+            } catch (e) {
+                console.error("Error cargando datos iniciales: ", e);
+                showErrorMessage("Error al conectar con la base de datos.", "Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
+            }
+        }
+        
+        async function saveFormStructure(initial = false) {
+            try {
+                // Solo guardar la estructura del formulario, el contador se maneja ATÓMICAMENTE
+                await CONFIG_COLLECTION.doc("systemConfig").set({
+                    formStructure: formStructure,
+                    otCounter: otCounter // Guardamos el valor actual, si es la inicialización será 1.
+                }, { merge: true });
+
+                if (!initial) {
+                    showSuccessMessage('🎉 Estructura del formulario y contador guardados exitosamente en la nube.');
+                    renderWorkOrderForm();
+                }
+            } catch (e) {
+                console.error("Error al guardar la estructura:", e);
+                showErrorMessage("Error al guardar la estructura en Firebase.", e.message);
+            }
+        }
+        
+        // Lógica de Roles
+        function getRoleFromEmail(email) {
+            if (ADMIN_EMAILS.includes(email)) return 'admin';
+            if (VIEWER_EMAILS.includes(email)) return 'viewer'; 
+            return 'normal'; 
+        }
+
+        // Lógica de Autenticación
+        async function login() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            const errorElement = document.getElementById('login-error');
+            errorElement.textContent = '';
+            
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+                const user = userCredential.user;
+                
+                let role = getRoleFromEmail(user.email); 
+                currentRole = role;
+                
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                await initializeApp(role);
+                
+            } catch (error) {
+                console.error("Error de autenticación:", error.code, error.message);
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorElement.textContent = 'El formato del correo es inválido.';
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    errorElement.textContent = 'ERROR DE CONFIGURACIÓN: La Clave API de Firebase no es válida.';
+                } else {
+                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
+                }
+            }
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => {
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                showSuccessMessage('Sesión cerrada correctamente.');
+            }).catch((error) => {
+                console.error("Error al cerrar sesión:", error);
+                showErrorMessage('Error al cerrar sesión.', error.message);
+            });
+        }
+
+        async function initializeApp(role) {
+            const isCreator = (role === 'admin' || role === 'normal');
+
+            document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            document.getElementById('admin-status-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
+            
+            await loadInitialData(); 
+            
+            if (role === 'admin') {
+                renderFormEditor();
+                openTab(null, 'edit-form');
+            } else if (role === 'normal') {
+                openTab(null, 'new-order');
+            } else if (role === 'viewer') {
+                openTab(null, 'view-orders'); 
+            }
+            
+            renderWorkOrderForm();
+            renderAllTables();
+        }
+
+        window.onload = function() {
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    let role = getRoleFromEmail(user.email); 
+                    currentRole = role;
+                    
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    initializeApp(role);
+                } else {
+                    currentRole = null;
+                    document.getElementById('main-app').style.display = 'none';
+                    document.getElementById('login-view').style.display = 'block';
                 }
             });
-            return nextNumber;
-        } catch (e) {
-            console.error("Error en la transacción del contador:", e);
-            throw new Error("Fallo al obtener el número de orden de forma segura. Intente de nuevo.");
         }
-    }
+        
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            if (evt) evt.currentTarget.className += " active";
 
-    /**
-     * Crea una Orden de Trabajo completa.
-     */
-    async function createWorkOrder() {
-        const descriptionInput = document.getElementById('work-description');
-        const description = descriptionInput.value.trim();
-        const btn = document.getElementById('create-order-btn');
-        const btnText = document.getElementById('btn-text');
-        const btnLoader = document.getElementById('btn-loader');
-        const msgBox = document.getElementById('message-box');
-
-        if (!description) {
-            showToast(msgBox, 'Por favor, ingrese una descripción para la orden.', 'red');
-            return;
+            if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
+            else if (tabName === 'view-orders') renderOrdersTable('view-orders');
+            else if (tabName === 'finalize-orders') renderOrdersTable('finalize-orders');
+            else if (tabName === 'finished-orders') renderOrdersTable('finished-orders');
+            else if (tabName === 'cancel-orders') renderOrdersTable('cancel-orders');
+            else if (tabName === 'cancelled-orders') renderOrdersTable('cancelled-orders');
+            else if (tabName === 'admin-status-change') renderOrdersTable('admin-status-change');
+            else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
-        if (!isAuthReady) {
-            showToast(msgBox, 'Esperando autenticación...', 'yellow');
-            return;
+        
+        // *** 3. LÓGICA DEL EDITOR DE FORMULARIO ***
+        
+        function renderFormEditor() {
+            const editorDiv = document.getElementById('form-editor');
+            editorDiv.innerHTML = '';
+
+            formStructure.forEach((section, secIndex) => {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'form-section';
+                sectionDiv.innerHTML = `
+                    <h4>Sección ${secIndex + 1}: <input type="text" value="${section.title}" oninput="updateSectionTitle(${secIndex}, this.value)" style="width: 70%; display: inline;"></h4>
+                    <button onclick="addField(${secIndex}, 'text')">➕ Agregar Campo de Texto</button>
+                    <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
+                    <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
+                    <hr>
+                    <div id="fields-container-${secIndex}"></div>
+                `;
+                editorDiv.appendChild(sectionDiv);
+
+                const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
+                section.fields.forEach((field, fieldIndex) => {
+                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') {
+                        fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
+                        return;
+                    }
+
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'field-editor-item';
+                    fieldDiv.innerHTML = `
+                        <label>Etiqueta:</label>
+                        <input type="text" value="${field.label}" oninput="updateFieldProperty(${secIndex}, ${fieldIndex}, 'label', this.value)">
+                        <label>Tipo:</label>
+                        <select onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'type', this.value)">
+                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>Texto (Corto)</option>
+                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
+                            <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto (Largo)</option>
+                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable (Simple)</option>
+                            <option value="autofill-select" ${field.type === 'autofill-select' ? 'selected' : ''}>Lista (Autollenado Contratista) 📝</option>
+                            <option value="date-input" ${field.type === 'date-input' ? 'selected' : ''}>Fecha (Calendario) 📅</option>
+                        </select>
+                        <label>Clasificación:</label>
+                        <input type="checkbox" id="req-${secIndex}-${fieldIndex}" ${field.required ? 'checked' : ''} onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'required', this.checked)"> 
+                        <label for="req-${secIndex}-${fieldIndex}" style="display: inline-block; font-weight: normal;">Obligatorio</label>
+                        
+                        <div id="select-options-${secIndex}-${fieldIndex}" style="margin-top: 10px; ${field.type !== 'select' && field.type !== 'autofill-select' ? 'display: none;' : ''}">
+                            <strong>Opciones de Lista (solo visible si es 'Select' o 'Autofill-Select'). </strong>
+                            ${field.type === 'autofill-select' ? 
+                                '<p style="color: var(--color-error);">⚠️ **Autollenado:** Las opciones se toman de `CONTRATISTAS_DATA` y anulan esta lista.</p>' : ''
+                            }
+                            <input type="text" value="${(field.options || []).join(', ')}" oninput="updateSelectOptions(${secIndex}, ${fieldIndex}, this.value)">
+                        </div>
+                        <button onclick="removeField(${secIndex}, ${fieldIndex})" style="background-color: var(--color-error); color: var(--color-white);">🗑️ Eliminar Campo</button>
+                    `;
+                    fieldsContainer.appendChild(fieldDiv);
+                });
+            });
+        }
+        
+        function updateSectionTitle(secIndex, newTitle) { formStructure[secIndex].title = newTitle; }
+
+        function updateFieldProperty(secIndex, fieldIndex, prop, value) {
+            formStructure[secIndex].fields[fieldIndex][prop] = value;
+            if (prop === 'type') {
+                const selectDiv = document.getElementById(`select-options-${secIndex}-${fieldIndex}`);
+                if (value === 'select' || value === 'autofill-select') {
+                    selectDiv.style.display = 'block';
+                } else {
+                    selectDiv.style.display = 'none';
+                }
+            }
         }
 
-        // Mostrar carga y deshabilitar botón
-        btnText.textContent = 'Generando...';
-        btn.disabled = true;
-        btnLoader.classList.remove('hidden');
-        msgBox.classList.add('hidden');
+        function updateSelectOptions(secIndex, fieldIndex, value) {
+            formStructure[secIndex].fields[fieldIndex].options = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
 
-        try {
-            // 1. Obtener el número de orden de forma atómica
-            const orderNumber = await getNextWorkOrderNumber();
-
-            // 2. Crear el documento de la Orden de Trabajo
-            const orderData = {
-                orderNumber: orderNumber,
-                description: description,
-                status: 'Pendiente',
-                creatorId: userId,
-                createdAt: serverTimestamp()
+        function addField(secIndex, type) {
+            const newField = { 
+                id: `custom_field_${secIndex}_${Date.now()}`, 
+                label: `Nuevo Campo ${formStructure[secIndex].fields.length + 1}`, 
+                type: type, 
+                required: false 
             };
-
-            const newOrderRef = doc(collection(db, WORK_ORDERS_PATH));
-            await setDoc(newOrderRef, orderData);
-
-            showToast(msgBox, `¡Orden de Trabajo Nro. ${orderNumber} creada con éxito!`, 'green');
-            descriptionInput.value = ''; // Limpiar campo
-            
-        } catch (error) {
-            console.error("Error al crear la Orden de Trabajo:", error);
-            showToast(msgBox, `Error al crear la Orden: ${error.message}.`, 'red');
-        } finally {
-            // Restaurar botón
-            btnText.textContent = 'Generar Orden de Trabajo (Usando Transacción)';
-            btn.disabled = false;
-            btnLoader.classList.add('hidden');
+            if (type === 'select') {
+                newField.options = ["Opción 1", "Opción 2"];
+            }
+            formStructure[secIndex].fields.push(newField);
+            renderFormEditor();
         }
-    }
 
-    window.createWorkOrder = createWorkOrder; // Hacer la función accesible globalmente
+        function removeField(secIndex, fieldIndex) {
+            formStructure[secIndex].fields.splice(fieldIndex, 1);
+            renderFormEditor();
+        }
 
-    /**
-     * Configura el listener en tiempo real para mostrar las órdenes.
-     */
-    function setupRealtimeListener() {
-        if (!db) return;
+        // *** 4. RENDERIZADO DEL FORMULARIO DE ORDEN DE TRABAJO ***
 
-        // Diagnóstico: Confirma que estamos listos para la consulta.
-        // El error de permisos suele ser por problemas de autenticación o reglas de seguridad.
-        if (!userId) {
-            console.error("Error de diagnóstico: userId es nulo al intentar configurar el listener. Retrasando...");
-            return; // En teoría, esto no debería ocurrir aquí debido a onAuthStateChanged.
+        function renderWorkOrderForm() {
+            if (!formStructure) return;
+
+            const formDiv = document.getElementById('work-order-form');
+            let html = '';
+            const userEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'Usuario Desconocido';
+            
+            formStructure.forEach((section) => {
+                html += `<div class="form-section"><h4>${section.title}</h4>`;
+                
+                section.fields.forEach(field => {
+                    let inputHtml = '';
+                    const isRequired = field.required ? 'required' : '';
+                    const fieldId = field.id;
+                    const fieldLabel = field.label;
+
+                    switch (field.type) {
+                        case 'static':
+                        case 'ot_counter':
+                            const otValue = field.type === 'ot_counter' ? otCounter : field.value;
+                            inputHtml = `<input type="text" id="${fieldId}" value="${otValue}" disabled ${isRequired}>`;
+                            break;
+                        case 'date-auto':
+                            inputHtml = `<input type="date" id="${fieldId}" value="${new Date().toISOString().slice(0, 10)}" disabled ${isRequired}>`;
+                            break;
+                        case 'user-auto-fill':
+                            inputHtml = `<input type="email" id="${fieldId}" value="${userEmail}" disabled ${isRequired}>`;
+                            break;
+                        case 'text':
+                            inputHtml = `<input type="text" id="${fieldId}" placeholder="${fieldLabel}" ${isRequired}>`;
+                            break;
+                        case 'number':
+                            inputHtml = `<input type="number" id="${fieldId}" placeholder="${fieldLabel}" ${isRequired}>`;
+                            break;
+                        case 'textarea':
+                            inputHtml = `<textarea id="${fieldId}" rows="4" placeholder="${fieldLabel}" ${isRequired}></textarea>`;
+                            break;
+                        case 'date-input':
+                            inputHtml = `<input type="date" id="${fieldId}" ${isRequired}>`;
+                            break;
+                        case 'select':
+                            inputHtml = `<select id="${fieldId}" ${isRequired}>`;
+                            inputHtml += `<option value="">-- Seleccione ${fieldLabel} --</option>`;
+                            (field.options || []).forEach(option => {
+                                inputHtml += `<option value="${option}">${option}</option>`;
+                            });
+                            inputHtml += `</select>`;
+                            break;
+                        case 'autofill-select':
+                            inputHtml = `<select id="${fieldId}" onchange="autofillContratista(this.value)" ${isRequired}>`;
+                            Object.keys(CONTRATISTAS_DATA).forEach(empresa => {
+                                inputHtml += `<option value="${empresa}">${empresa}</option>`;
+                            });
+                            inputHtml += `</select>`;
+                            break;
+                    }
+                    
+                    html += `<label for="${fieldId}">${fieldLabel}:</label>${inputHtml}`;
+                });
+                html += `</div>`; // Fin de form-section
+            });
+
+            formDiv.innerHTML = html;
+        }
+
+        function autofillContratista(empresa) {
+            const data = CONTRATISTAS_DATA[empresa];
+            if (!data) return;
+
+            // Intenta encontrar los campos de Nombre y Rif por su etiqueta
+            for (const key in data) {
+                // Buscamos un campo en la estructura del formulario cuya etiqueta coincida con la key
+                for (const section of formStructure) {
+                    const field = section.fields.find(f => f.label === key);
+                    if (field) {
+                        const input = document.getElementById(field.id);
+                        if (input) {
+                            input.value = data[key];
+                        }
+                    }
+                }
+            }
         }
         
-        console.log("Intentando conectar listener en WORK_ORDERS_PATH:", WORK_ORDERS_PATH);
-        console.log("Usuario actual ID (para referencia de reglas):", userId);
+        // *** 5. CREACIÓN DE ORDEN DE TRABAJO Y LÓGICA DE CONTADOR (FIX) ***
 
-
-        const q = query(collection(db, WORK_ORDERS_PATH), orderBy('orderNumber', 'desc'), limit(10));
-        
-        onSnapshot(q, (snapshot) => {
-            const list = document.getElementById('work-orders-list');
-            list.innerHTML = '';
-            
-            if (snapshot.empty) {
-                list.innerHTML = '<p class="text-gray-500 text-sm italic">Aún no hay órdenes de trabajo creadas.</p>';
+        async function generateWorkOrder() {
+            const form = document.getElementById('work-order-form');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                showErrorMessage('Error de Formulario', 'Por favor, rellene todos los campos obligatorios.');
                 return;
             }
 
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const time = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString('es-ES') : 'N/A';
-                
-                const item = document.createElement('div');
-                item.className = 'p-3 bg-primary-light border border-primary-blue rounded-lg';
-                item.innerHTML = `
-                    <p class="font-bold text-lg text-primary-blue">Nro. ${data.orderNumber}</p>
-                    <p class="text-sm text-gray-700 truncate">${data.description}</p>
-                    <p class="text-xs text-gray-500 mt-1">Creada por: <span class="font-mono text-xs">${data.creatorId.substring(0, 8)}...</span> a las ${time}</p>
-                `;
-                list.appendChild(item);
+            const otData = {};
+            
+            // 1. Recolectar datos del formulario
+            formStructure.forEach(section => {
+                section.fields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input) {
+                        otData[field.label] = input.value;
+                    } else if (field.type === 'ot_counter') {
+                        // Asegurar que el ot_counter usa el valor correcto (otCounter global)
+                        otData[field.label] = otCounter; 
+                    }
+                });
             });
-        }, (error) => {
-            console.error("Error al escuchar las Órdenes de Trabajo:", error);
-            // Mostrar mensaje de error más claro en la UI.
-            const list = document.getElementById('work-orders-list');
-            list.innerHTML = `<p class="text-red-600 font-medium p-4 bg-red-50 rounded-lg">Error de Permisos: No se pudo cargar el historial. Asegúrese de que el usuario esté autenticado correctamente y que las reglas de seguridad de Firestore permitan la lectura pública de la ruta: ${WORK_ORDERS_PATH}</p>`;
-        });
-    }
 
-    /**
-     * Muestra un mensaje temporal en la caja de notificaciones.
-     */
-    function showToast(element, message, type) {
-        element.textContent = message;
-        element.className = 'mt-4 p-3 rounded-lg text-center font-medium';
-        element.classList.remove('hidden');
+            otData.ot_number = otCounter; // Almacenamos el número de OT por separado para facilitar la búsqueda
+            otData.status = 'En Progreso';
+            otData.createdAt = new Date().toISOString();
+            otData.createdBy = firebase.auth().currentUser.email;
 
-        switch (type) {
-            case 'green':
-                element.classList.add('bg-green-100', 'text-green-700');
-                break;
-            case 'red':
-                element.classList.add('bg-red-100', 'text-red-700');
-                break;
-            case 'yellow':
-                element.classList.add('bg-yellow-100', 'text-yellow-700');
-                break;
+            try {
+                // 2. Guardar la nueva Orden de Trabajo
+                await ORDERS_COLLECTION.add(otData);
+
+                // 3. FIX: Incrementar atómicamente el contador en la base de datos
+                await CONFIG_COLLECTION.doc("systemConfig").update({
+                    otCounter: firebase.firestore.FieldValue.increment(1)
+                });
+                
+                // 4. Actualizar el contador local solo después del éxito en DB
+                otCounter++; 
+
+                showSuccessMessage('¡Orden de Trabajo Creada!', `La Orden de Trabajo Nro. ${otData.ot_number} ha sido guardada y está "En Progreso".`);
+                
+                // 5. Generar PDF (siempre después de guardar)
+                generatePDF(otData);
+                
+                // 6. Limpiar formulario y renderizar para el siguiente número
+                form.reset();
+                renderWorkOrderForm(); 
+
+            } catch (e) {
+                console.error("Error al crear la OT o incrementar contador:", e);
+                showErrorMessage('Error al Guardar la OT', 'Ocurrió un error al guardar la orden o al actualizar el contador en Firebase. ' + e.message);
+            }
+        }
+
+        // *** 6. LÓGICA DE VISUALIZACIÓN Y CAMBIO DE ESTADO ***
+        
+        function renderAllTables() {
+            renderOrdersTable('view-orders');
+            renderOrdersTable('finalize-orders');
+            renderOrdersTable('finished-orders');
+            renderOrdersTable('cancel-orders');
+            renderOrdersTable('cancelled-orders');
+            renderOrdersTable('admin-status-change');
+        }
+
+        function renderOrdersTable(tabName) {
+            let filteredOrders = [];
+            let tableBody;
+
+            switch(tabName) {
+                case 'view-orders':
+                    filteredOrders = workOrders;
+                    tableBody = document.querySelector('#orders-table tbody');
+                    break;
+                case 'finalize-orders':
+                    filteredOrders = workOrders.filter(ot => ot.status === 'En Progreso');
+                    tableBody = document.querySelector('#finalize-table tbody');
+                    break;
+                case 'finished-orders':
+                    filteredOrders = workOrders.filter(ot => ot.status === 'Finalizada');
+                    tableBody = document.querySelector('#finished-table tbody');
+                    break;
+                case 'cancel-orders':
+                    filteredOrders = workOrders.filter(ot => ot.status === 'En Progreso');
+                    tableBody = document.querySelector('#cancel-table tbody');
+                    break;
+                case 'cancelled-orders':
+                    filteredOrders = workOrders.filter(ot => ot.status === 'Cancelada');
+                    tableBody = document.querySelector('#cancelled-table tbody');
+                    break;
+                case 'admin-status-change':
+                    filteredOrders = workOrders.filter(ot => ot.status !== 'En Progreso');
+                    tableBody = document.querySelector('#admin-status-table tbody');
+                    break;
+                default:
+                    return;
+            }
+
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+            
+            // Ordenar por número de OT descendente
+            filteredOrders.sort((a, b) => b.ot_number - a.ot_number);
+
+            filteredOrders.forEach(ot => {
+                const tr = document.createElement('tr');
+                let actionsHtml = '';
+
+                switch(tabName) {
+                    case 'view-orders':
+                        actionsHtml = `<button onclick="viewOrderDetails('${ot.id}')" style="background-color: var(--color-secondary);">Detalles</button>`;
+                        if (currentRole === 'admin') {
+                             actionsHtml += `<button onclick="confirmDeletion('${ot.id}', ${ot.ot_number})" style="background-color: var(--color-error); margin-left: 5px;">Eliminar</button>`;
+                        }
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td><span class="status-badge status-${ot.status.replace(/\s/g, '')}">${ot.status}</span></td>
+                            <td>${new Date(ot.createdAt).toLocaleDateString()}</td>
+                            <td>${actionsHtml}</td>
+                        `;
+                        break;
+
+                    case 'finalize-orders':
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td>${new Date(ot.createdAt).toLocaleDateString()}</td>
+                            <td><button onclick="openStatusModal('${ot.id}', 'Finalizada')" style="background-color: var(--color-success);">Finalizar</button></td>
+                        `;
+                        break;
+                    
+                    case 'finished-orders':
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td>${ot.statusChangeDate ? new Date(ot.statusChangeDate).toLocaleDateString() : 'N/A'}</td>
+                            <td>${ot.statusChangeBy || 'N/A'}</td>
+                            <td><button onclick="viewStatusDetails('${ot.id}', '${ot.status}')" style="background-color: var(--color-secondary);">Ver Detalle</button></td>
+                        `;
+                        break;
+
+                    case 'cancel-orders':
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td>${new Date(ot.createdAt).toLocaleDateString()}</td>
+                            <td><button onclick="openStatusModal('${ot.id}', 'Cancelada')" style="background-color: var(--color-error);">Cancelar</button></td>
+                        `;
+                        break;
+
+                    case 'cancelled-orders':
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td>${ot.statusChangeDate ? new Date(ot.statusChangeDate).toLocaleDateString() : 'N/A'}</td>
+                            <td>${ot.statusChangeBy || 'N/A'}</td>
+                            <td><button onclick="viewStatusDetails('${ot.id}', '${ot.status}')" style="background-color: var(--color-secondary);">Ver Detalle</button></td>
+                        `;
+                        break;
+                    
+                    case 'admin-status-change':
+                        tr.innerHTML = `
+                            <td>${ot.ot_number}</td>
+                            <td>${getDataLabel(ot, 'Título del Formulario', 'Título')}</td>
+                            <td><span class="status-badge status-${ot.status.replace(/\s/g, '')}">${ot.status}</span></td>
+                            <td><button onclick="confirmReversion('${ot.id}', ${ot.ot_number})" style="background-color: var(--color-warning);">Revertir a En Progreso</button></td>
+                        `;
+                        break;
+                }
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        function viewOrderDetails(orderId) {
+             const ot = workOrders.find(o => o.id === orderId);
+             if (!ot) return;
+             let details = `<h4>Detalles de la Orden #${ot.ot_number}</h4>`;
+             details += `<strong>Estado:</strong> <span class="status-badge status-${ot.status.replace(/\s/g, '')}">${ot.status}</span><br><br>`;
+             
+             // Recorrer las propiedades de la OT para mostrarlas
+             for (const key in ot) {
+                 if (key !== 'id' && key !== 'status' && key !== 'createdAt' && key !== 'createdBy' && key !== 'ot_number') {
+                     details += `<strong>${key}:</strong> ${ot[key]}<br>`;
+                 }
+             }
+             
+             details += `<br><strong>Creada por:</strong> ${ot.createdBy} el ${new Date(ot.createdAt).toLocaleDateString()}`;
+
+             if (ot.statusDetail) {
+                 details += `<br><br><strong>Detalle de Estado (${ot.status}):</strong> ${ot.statusDetail}`;
+             }
+             
+             showMessageModal('Detalles de la Orden', details);
+        }
+
+        function viewStatusDetails(orderId, status) {
+            const ot = workOrders.find(o => o.id === orderId);
+            if (!ot || !ot.statusDetail) {
+                showMessageModal('Detalle de Estado', `La Orden #${ot.ot_number} no tiene un detalle específico de ${status}.`);
+                return;
+            }
+            showMessageModal(`Detalle de ${status} - OT #${ot.ot_number}`, ot.statusDetail);
+        }
+
+        async function updateOrderStatus(orderId, newStatus, detail = null) {
+            try {
+                const user = firebase.auth().currentUser.email;
+                const updateData = {
+                    status: newStatus,
+                    statusChangeDate: new Date().toISOString(),
+                    statusChangeBy: user,
+                    statusDetail: detail
+                };
+
+                await ORDERS_COLLECTION.doc(orderId).update(updateData);
+                showSuccessMessage('Estado Actualizado', `La Orden #${workOrders.find(o => o.id === orderId).ot_number} ha sido marcada como **${newStatus}** por ${user}.`);
+                closeStatusModal();
+
+            } catch (e) {
+                console.error("Error al actualizar el estado:", e);
+                showErrorMessage('Error de Actualización', 'No se pudo actualizar el estado de la orden. ' + e.message);
+            }
+        }
+        
+        function openStatusModal(orderId, action) {
+            const ot = workOrders.find(o => o.id === orderId);
+            if (!ot) return;
+
+            currentOrderToModify = { id: orderId, action: action, ot_number: ot.ot_number };
+            const modalTitle = action === 'Finalizada' ? 'Finalizar Orden de Trabajo' : 'Cancelar Orden de Trabajo';
+            const buttonColor = action === 'Finalizada' ? 'var(--color-success)' : 'var(--color-error)';
+            const buttonText = action === 'Finalizada' ? 'Finalizar OT' : 'Cancelar OT';
+
+            document.getElementById('modal-title').textContent = modalTitle;
+            document.getElementById('modal-order-info').innerHTML = `Se cambiará el estado de la Orden de Trabajo **Nro. ${ot.ot_number}** a **${action}**.`;
+            document.getElementById('modal-action-button').style.backgroundColor = buttonColor;
+            document.getElementById('modal-action-button').textContent = buttonText;
+            document.getElementById('detail-info').value = '';
+            
+            document.getElementById('status-modal-overlay').style.display = 'flex';
+        }
+
+        function closeStatusModal() {
+            document.getElementById('status-modal-overlay').style.display = 'none';
+            currentOrderToModify = null;
+        }
+
+        function executeStatusAction() {
+            if (!currentOrderToModify) return;
+
+            const detail = document.getElementById('detail-info').value.trim();
+            const action = currentOrderToModify.action;
+            const orderId = currentOrderToModify.id;
+            
+            if (detail.length < 10) {
+                 showErrorMessage('Detalle Requerido', `Por favor, escriba al menos 10 caracteres de detalle para la ${action}.`);
+                 return;
+            }
+
+            updateOrderStatus(orderId, action, detail);
+        }
+
+        async function confirmDeletion(orderId, otNumber) {
+            const result = await showConfirmModal('Confirmar Eliminación', `¿Está seguro de que desea **ELIMINAR PERMANENTEMENTE** la Orden de Trabajo Nro. ${otNumber}? Esta acción es irreversible.`);
+            
+            if (result) {
+                try {
+                    await ORDERS_COLLECTION.doc(orderId).delete();
+                    showSuccessMessage('Orden Eliminada', `La Orden #${otNumber} ha sido eliminada permanentemente.`);
+                } catch (e) {
+                    console.error("Error al eliminar la OT:", e);
+                    showErrorMessage('Error de Eliminación', 'No se pudo eliminar la orden de Firebase. ' + e.message);
+                }
+            }
+        }
+
+        async function confirmReversion(orderId, otNumber) {
+             const result = await showConfirmModal('Confirmar Reversión de Estado', `¿Está seguro de que desea **REVERTIR** la Orden de Trabajo Nro. ${otNumber} al estado **"En Progreso"**?`);
+
+             if (result) {
+                 await updateOrderStatus(orderId, 'En Progreso', `Revertido por Administrador ${firebase.auth().currentUser.email}`);
+             }
+        }
+
+        // *** 7. LÓGICA DE MODALES DE MENSAJES (Reemplazo de Alert/Confirm) ***
+
+        // Muestra un modal de información simple
+        function showMessageModal(title, text) {
+            document.getElementById('message-modal-title').textContent = title;
+            document.getElementById('message-modal-text').innerHTML = text;
+            document.getElementById('message-modal-confirm').style.display = 'none';
+            document.getElementById('message-modal-cancel').style.display = 'none';
+            document.getElementById('message-modal-ok').style.display = 'inline-block';
+            document.getElementById('message-modal-overlay').style.display = 'flex';
+        }
+
+        // Muestra un modal de confirmación (devuelve una promesa)
+        function showConfirmModal(title, text) {
+             return new Promise(resolve => {
+                currentResolve = resolve;
+                document.getElementById('message-modal-title').textContent = title;
+                document.getElementById('message-modal-text').innerHTML = text;
+                document.getElementById('message-modal-confirm').style.display = 'inline-block';
+                document.getElementById('message-modal-cancel').style.display = 'inline-block';
+                document.getElementById('message-modal-ok').style.display = 'none';
+                document.getElementById('message-modal-overlay').style.display = 'flex';
+             });
+        }
+        
+        function showSuccessMessage(title, text) {
+             showMessageModal(title, `<span style="color: var(--color-success); font-weight: bold;">${text}</span>`);
+        }
+        
+        function showErrorMessage(title, text) {
+             showMessageModal(title, `<span style="color: var(--color-error); font-weight: bold;">${text}</span>`);
+        }
+
+        function closeMessageModal(result) {
+             document.getElementById('message-modal-overlay').style.display = 'none';
+             if (currentResolve) {
+                 currentResolve(result);
+                 currentResolve = null;
+             }
+        }
+        
+        // *** 8. GENERACIÓN DE PDF ***
+
+        function generatePDF(otData) {
+            const user = firebase.auth().currentUser.email;
+            const pdfContainer = document.createElement('div');
+            pdfContainer.style.padding = '20px';
+            pdfContainer.style.fontFamily = 'Arial, sans-serif';
+            pdfContainer.style.fontSize = '10pt';
+            pdfContainer.style.color = '#333';
+            pdfContainer.style.backgroundColor = 'white';
+            pdfContainer.style.maxWidth = '800px';
+
+            let pdfHtml = `
+                <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
+                    <h1 style="color: var(--color-text); margin: 0;">ORDEN DE TRABAJO</h1>
+                    <h2 style="color: var(--color-accent); margin: 5px 0;">Nro. ${otData.ot_number}</h2>
+                </div>
+                <div style="float: right; text-align: right; font-size: 0.8em; margin-bottom: 20px;">
+                    <strong>Creado por:</strong> ${otData.createdBy || user}<br>
+                    <strong>Fecha de Emisión:</strong> ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </div>
+                <div style="clear: both;"></div>
+            `;
+
+            formStructure.forEach((section) => {
+                pdfHtml += `
+                    <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px;">
+                        <h3 style="color: var(--color-secondary); margin: 5px 0; font-size: 1.1em;">${section.title}</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                `;
+
+                section.fields.forEach(field => {
+                    const value = otData[field.label] || 'N/A';
+                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') return;
+
+                    pdfHtml += `
+                        <tr>
+                            <td style="width: 40%; padding: 5px; border: 1px solid #eee; background-color: #f7f7f7;"><strong>${field.label}:</strong></td>
+                            <td style="width: 60%; padding: 5px; border: 1px solid #eee;">${value}</td>
+                        </tr>
+                    `;
+                });
+
+                pdfHtml += `</table></div>`;
+            });
+            
+            // Sección de Firmas
+            pdfHtml += `
+                <div class="pdf-signatures" style="margin-top: 80px;">
+                    <span style="text-align: center; border-top: 1px solid #36454F; padding-top: 5px;">Firma del Responsable que Autoriza</span>
+                    <span style="text-align: center; border-top: 1px solid #36454F; padding-top: 5px;">Firma y Sello del Contratista</span>
+                </div>
+            `;
+
+            pdfContainer.innerHTML = pdfHtml;
+
+            html2pdf().from(pdfContainer).set({
+                margin: 10,
+                filename: `Orden_de_Trabajo_Nro_${otData.ot_number}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, logging: false, dpi: 192, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).save();
+        }
+
+    </script>
+</body>
+</html>
