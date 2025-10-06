@@ -993,7 +993,7 @@
                     <p><label for="${prefix}_costo_proyectado">Costo Proyectado de la Obra (*):</label>
                         <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado" required></p>
                     
-                    <p><label for="${prefix}_pago_por_realizado">Pago por realizado por (*):</label>
+                    <p><label for="${prefix}_pago_por_realizado">Pago realizado por (*):</label>
                         <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado" required>
                             <option value="Inter">Inter</option>
                             <option value="Cliente">Cliente</option>
@@ -1153,7 +1153,7 @@
                 calculateNewTotal(prefix); 
 
                 orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
-                orderData[`${prefix} | Pago por realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
+                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
                 
                 // RENOMBRADO EN EL GUARDADO (Utiliza el nombre del total calculado)
                 orderData[`${prefix} | Pago x VGT a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
@@ -1275,7 +1275,7 @@
 
                 formContentHTML += `
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Costo Proyectado de la Obra:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Costo Proyectado de la Obra`]}</td></tr>
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago realizado por`]}</td></tr>
                     
                     <!-- Campo de Cálculo Renombrado/Movido -->
                     <tr style="background-color: #e0f7fa;">
@@ -1427,4 +1427,5 @@
 
 </body>
 </html>
+
 
