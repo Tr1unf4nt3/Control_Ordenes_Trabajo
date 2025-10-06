@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
+    <title>Sistema de Órdenes de Trabajo | Gestión de Estados</title>
     <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
@@ -22,6 +22,10 @@
             --color-white: #ffffff;
             --color-error: #FF6961;      /* Rojo pastel para errores */
             --color-success: #77DD77;    /* Verde pastel para éxito */
+            --color-warning: #FFD700;    /* Amarillo/Oro para advertencias */
+            --color-status-progress: #87CEFA;
+            --color-status-completed: #77DD77;
+            --color-status-cancelled: #FF6961;
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -34,7 +38,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1300px; /* Aumentado para más pestañas */
             margin: 0 auto;
             background-color: var(--color-white);
             border-radius: 12px;
@@ -60,73 +64,15 @@
             background-color: var(--color-white);
         }
 
-        /* Estilo para campos autollenados/deshabilitados */
-        input:disabled {
-            background-color: #f0f0f0; 
-            border: 1px dashed var(--color-secondary);
-        }
-
-        /* Estilo de validación (el navegador se encarga de lo básico, pero esto ayuda) */
-        input:invalid:not(:placeholder-shown), select:invalid:not(:placeholder-shown), textarea:invalid:not(:placeholder-shown) {
-            border: 2px solid var(--color-error);
-        }
-
-        .form-section {
-            border: 1px solid var(--color-secondary);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 25px;
-            background-color: #f7fbff;
-        }
-
-        /* Contenedor Flex para Campos de Cálculo */
-        .calculation-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            /* Flex vertical para etiquetas y horizontal para inputs/resultados */
-            flex-wrap: wrap; 
-            border: 1px solid var(--color-secondary);
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 15px;
-            background-color: #e0f7fa; /* Fondo azul claro para destacar el cálculo */
-        }
-
-        /* Estilo para la etiqueta y el input del Total calculado */
-        .calculation-total-section {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .calculation-total-section label {
-            font-weight: bold;
-            flex-basis: auto; 
-            margin-right: 15px;
-            white-space: nowrap;
-        }
-
-        .total-display {
-            background-color: var(--color-white);
-            font-weight: bold;
-            text-align: right;
-            border: 1px dashed var(--color-accent);
-            padding: 10px;
-            border-radius: 6px;
-            flex-grow: 1;
-        }
-
-        .calculation-input { 
-            flex-basis: calc(45% - 20px); 
-        } 
-        .calculation-group .formula-symbol {
-            font-size: 1.5em; 
-            font-weight: bold; 
-            margin-left: 5px; 
-            margin-right: 5px;
-        }
+        input:disabled { background-color: #f0f0f0; border: 1px dashed var(--color-secondary); }
+        input:invalid:not(:placeholder-shown), select:invalid:not(:placeholder-shown), textarea:invalid:not(:placeholder-shown) { border: 2px solid var(--color-error); }
+        .form-section { border: 1px solid var(--color-secondary); border-radius: 8px; padding: 20px; margin-bottom: 25px; background-color: #f7fbff; }
+        .calculation-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--color-secondary); border-radius: 6px; padding: 15px; margin-top: 15px; background-color: #e0f7fa; }
+        .calculation-total-section { display: flex; align-items: center; width: 100%; margin-top: 10px; }
+        .calculation-total-section label { font-weight: bold; flex-basis: auto; margin-right: 15px; white-space: nowrap; }
+        .total-display { background-color: var(--color-white); font-weight: bold; text-align: right; border: 1px dashed var(--color-accent); padding: 10px; border-radius: 6px; flex-grow: 1; }
+        .calculation-input { flex-basis: calc(45% - 20px); } 
+        .calculation-group .formula-symbol { font-size: 1.5em; font-weight: bold; margin-left: 5px; margin-right: 5px; }
 
         button {
             background-color: var(--color-accent);
@@ -137,52 +83,74 @@
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.1s;
+            white-space: nowrap; /* Evita que los botones del tab se rompan */
         }
-
-        button:hover {
-            background-color: var(--color-primary);
-        }
-        
-        /* Botones de Check Condicional */
-        .conditional-check {
-            background-color: var(--color-secondary);
-            color: var(--color-white);
-            font-weight: bold;
-            padding: 15px;
-            margin-bottom: 10px;
-            display: block;
-            text-align: left;
-        }
-        .conditional-check.active {
-            background-color: var(--color-success);
-        }
+        button:hover { background-color: var(--color-primary); }
+        .conditional-check { background-color: var(--color-secondary); color: var(--color-white); font-weight: bold; padding: 15px; margin-bottom: 10px; display: block; text-align: left; }
+        .conditional-check.active { background-color: var(--color-success); }
 
 
         /* Layout de Pestañas */
-        .tab { overflow: hidden; border-bottom: 1px solid var(--color-secondary); margin-bottom: 20px; }
-        .tablinks { background-color: var(--color-bg); color: var(--color-text); float: left; border: none; outline: none; cursor: pointer; padding: 14px 20px; transition: 0.3s; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .tab { overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--color-secondary); margin-bottom: 20px; padding-bottom: 5px;}
+        .tablinks { background-color: var(--color-bg); color: var(--color-text); display: inline-block; border: none; outline: none; cursor: pointer; padding: 14px 20px; transition: 0.3s; border-top-left-radius: 8px; border-top-right-radius: 8px; }
         .tablinks:hover { background-color: var(--color-primary); }
         .tablinks.active { background-color: var(--color-primary); border-bottom: 3px solid var(--color-accent); margin-bottom: -1px; }
         .tabcontent { display: none; padding: 30px 0; }
-
-        /* Estilos de Edición */
         .field-editor-item { border: 1px dashed var(--color-secondary); border-radius: 6px; padding: 15px; margin-bottom: 10px; background-color: var(--color-white); }
         .required-fixed-field { padding: 10px; background-color: var(--color-secondary); color: var(--color-white); border-radius: 4px; margin-bottom: 10px; }
         
         /* Estilos para la tabla */
-        #orders-table { width: 100%; border-collapse: collapse; }
-        #orders-table th, #orders-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
-        #orders-table th { background-color: var(--color-primary); color: var(--color-text); }
-        #orders-table tr:nth-child(even) { background-color: var(--color-bg); }
-        #orders-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
+        #orders-table, .status-table { width: 100%; border-collapse: collapse; }
+        #orders-table th, #orders-table td, .status-table th, .status-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
+        #orders-table th, .status-table th { background-color: var(--color-primary); color: var(--color-text); }
+        #orders-table tr:nth-child(even), .status-table tr:nth-child(even) { background-color: var(--color-bg); }
+        #orders-table tr:hover, .status-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
+
+        /* Etiqueta de Estado */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-weight: bold;
+            color: var(--color-white);
+            font-size: 0.85em;
+        }
+        .status-EnProgreso { background-color: var(--color-status-progress); }
+        .status-Finalizada { background-color: var(--color-status-completed); }
+        .status-Cancelada { background-color: var(--color-status-cancelled); }
 
         /* Login View */
         #login-view { width: 350px; padding: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--color-white); border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); text-align: center; }
         #login-error { color: var(--color-error); font-weight: bold; }
         
-        /* Estilo para las firmas en el PDF */
+        /* Estilos para Modales (Ventanas Flotantes NO transparentes) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Oscurece el fondo */
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: var(--color-white);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .modal-content h3 {
+            border-bottom: 2px solid var(--color-accent);
+        }
+
+        /* Estilos específicos para el PDF de constancia */
         .pdf-signatures {
-            margin-top: 60px; /* 1cm más abajo */
+            margin-top: 60px;
             padding-top: 30px;
             border-top: 1px dashed #B0C4DE;
             display: flex;
@@ -193,20 +161,18 @@
         }
         .pdf-signatures span {
             display: inline-block;
-            width: 45%; /* Ajuste para espacio entre firmas */
+            width: 45%;
         }
         .pdf-signatures hr {
             border: none;
             border-top: 1px solid #36454F;
             margin: 5px 0 0 0;
         }
-        
-        /* Estilos específicos para el encabezado en páginas > 1 del PDF */
         .pdf-header-secondary {
-            position: fixed; /* Fijo en la parte superior */
-            top: 10px; /* Posición ajustada para evitar margen */
-            right: 20px; /* Posición ajustada para el lado derecho */
-            font-size: 14px; /* Tamaño similar al de las secciones */
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            font-size: 14px;
             color: #555;
             font-weight: bold;
             z-index: 1000;
@@ -216,6 +182,22 @@
 </head>
 <body>
 
+    <!-- MODAL DE INFORMACIÓN DETALLADA (Finalización/Cancelación) -->
+    <div id="status-modal-overlay" class="modal-overlay" onclick="closeStatusModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="modal-title">Información Detallada</h3>
+            <p id="modal-order-info"></p>
+            
+            <label for="detail-info">Información Detallada:</label>
+            <textarea id="detail-info" rows="6" required placeholder="Escriba aquí los detalles de la finalización o cancelación."></textarea>
+            
+            <div style="text-align: right; margin-top: 20px;">
+                <button onclick="closeStatusModal()" style="background-color: var(--color-secondary);">Retroceder</button>
+                <button id="modal-action-button" onclick="executeStatusAction()" style="background-color: var(--color-success);">Aceptar</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="login-view">
         <h2>🔒 Iniciar Sesión</h2>
         <input type="email" id="email" placeholder="Correo Electrónico" required><br>
@@ -228,10 +210,20 @@
         
         <!-- Pestañas de Navegación -->
         <div class="tab">
-            <!-- ID AÑADIDO: new-order-tab-button -->
-            <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
+            <!-- Pestañas de Creación y Visualización -->
+            <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva OT</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
+            
+            <!-- Pestañas de Flujo de Estados (Comunes) -->
+            <button class="tablinks" onclick="openTab(event, 'finalize-orders')">✅ Finalización de Órdenes</button>
+            <button class="tablinks" onclick="openTab(event, 'finished-orders')">🟢 Órdenes Finalizadas</button>
+            <button class="tablinks" onclick="openTab(event, 'cancel-orders')">❌ Cancelación de Órdenes</button>
+            <button class="tablinks" onclick="openTab(event, 'cancelled-orders')">🔴 Órdenes Canceladas</button>
+
+            <!-- Pestañas de Administración (Solo Admin) -->
+            <button class="tablinks" id="admin-status-tab-button" onclick="openTab(event, 'admin-status-change')" style="display: none;">🔄 Cambio de Estado (Admin)</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
+            
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
@@ -244,29 +236,84 @@
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
         </div>
 
-        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo (Todas las OT) -->
         <div id="view-orders" class="tabcontent">
-            <h3>Registro Histórico de Órdenes</h3>
+            <h3>Registro Histórico de Órdenes (Todas)</h3>
             <table id="orders-table">
                 <thead>
-                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acciones</th></tr>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Estado</th><th>Fecha Creación</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 3: Finalización de Órdenes (Solo En Progreso) -->
+        <div id="finalize-orders" class="tabcontent">
+            <h3>Finalización de Órdenes: <span class="status-badge status-EnProgreso">En Progreso</span></h3>
+            <table class="status-table" id="finalize-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acción</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 4: Órdenes Finalizadas -->
+        <div id="finished-orders" class="tabcontent">
+            <h3>Registro de Órdenes <span class="status-badge status-Finalizada">Finalizadas</span></h3>
+            <table class="status-table" id="finished-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Finalización</th><th>Usuario</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 5: Cancelación de Órdenes (Solo En Progreso) -->
+        <div id="cancel-orders" class="tabcontent">
+            <h3>Cancelación de Órdenes: <span class="status-badge status-EnProgreso">En Progreso</span></h3>
+            <table class="status-table" id="cancel-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acción</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </div>
 
-        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
+        <!-- Pestaña 6: Órdenes Canceladas -->
+        <div id="cancelled-orders" class="tabcontent">
+            <h3>Registro de Órdenes <span class="status-badge status-Cancelada">Canceladas</span></h3>
+            <table class="status-table" id="cancelled-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Cancelación</th><th>Usuario</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 7: Cambio de Estado (Solo Admin) -->
+        <div id="admin-status-change" class="tabcontent">
+            <h3>Cambio de Estado <span class="status-badge status-Finalizada">Finalizada</span> / <span class="status-badge status-Cancelada">Cancelada</span> (Administrador)</h3>
+            <p>Seleccione una orden para revertir su estado a <span class="status-badge status-EnProgreso">En Progreso</span>.</p>
+            <table class="status-table" id="admin-status-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Estado Actual</th><th>Acción</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Pestaña 8: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
             <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
         </div>
     </div>
-
+    
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
-        // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
           // *** CLAVE API ACTUALIZADA CON EL VALOR PROPORCIONADO POR EL USUARIO ***
           apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA", 
@@ -280,179 +327,31 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         
-        // Referencias a las "colecciones" de la base de datos
         const ORDERS_COLLECTION = db.collection("workOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
         
-        // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
         let otCounter = 1; 
         let currentRole = null; 
+        let currentOrderToModify = null; // Para guardar la OT seleccionada en el modal
 
-        // ----------------------------------------------------------------------------------
-        // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
-        // ----------------------------------------------------------------------------------
-
-        // Coloque aquí todos los correos electrónicos con acceso de administrador
-        const ADMIN_EMAILS = [
-            'labortradingsg@gmail.com', // El correo que usted configuró
-            'admin.secundario@tudominio.com' // Otro administrador de ejemplo
-        ]; 
-
-        // Coloque aquí todos los correos electrónicos con acceso de solo visualización
-        const VIEWER_EMAILS = [
-            'visualizador1@empresa.com',
-            'visualizador2@empresa.com',
-            'solo.ver@tudominio.com' // Visualizador de ejemplo
-        ]; 
-
-        // ----------------------------------------------------------------------------------
-        // *** FIN CONFIGURACIÓN DE ROLES ***
-        // ----------------------------------------------------------------------------------
+        // Roles
+        const ADMIN_EMAILS = ['labortradingsg@gmail.com', 'admin.secundario@tudominio.com']; 
+        const VIEWER_EMAILS = ['visualizador1@empresa.com', 'visualizador2@empresa.com', 'solo.ver@tudominio.com']; 
         
-        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
+        // Datos Fijos
         const CONTRATISTAS_DATA = {
-            "Seleccione una Empresa": {
-                "Apellido y Nombre del Responsable": "",
-                "Rif": ""
-            },
-            " JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES  C.A": {
-                "Apellido y Nombre del Responsable": "JOHN RIVAS",
-                "Rif": "J-50507058-4"
-            },
-            "CHASSERAL  C.A": {
-                "Apellido y Nombre del Responsable": "YORKFRAN PERAZA",
-                "Rif": "J-29510646-7"
-            },
-            "CONSERVI AJ C.A": {
-                "Apellido y Nombre del Responsable": "ALFONZO BASTARDO",
-                "Rif": "J-29548400-3"
-            },
-            "CORPORACION ACEL  C.A": {
-                "Apellido y Nombre del Responsable": "DANIEL GONCALVES",
-                "Rif": "J-30860621-9"
-            },
-            "CORPORACIÓN TORRA NET 2022  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS TORRADO",
-                "Rif": "J-50308479-0"
-            },
-            "DISTRIBUIDORA TODO EN REDES G.S.R  C.A": {
-                "Apellido y Nombre del Responsable": "GASTON BUIZA",
-                "Rif": "J-40424835-8"
-            },
-            "FIBRA INTEGRA  C.A": {
-                "Apellido y Nombre del Responsable": "MARIE ANTONIETTE DAHDAH",
-                "Rif": "J-50265450-0"
-            },
-            "G&D INTEGRAL RED 2023": {
-                "Apellido y Nombre del Responsable": "RAFAEL GOMEZ",
-                "Rif": "J-50298686-3"
-            },
-            "GLOBAL FIX C.A": {
-                "Apellido y Nombre del Responsable": "CECILIA CASTRO - JEAN PIERRE LAPARROUSAZ",
-                "Rif": "J-31189038-6"
-            },
-            "INT.TV  C.A": {
-                "Apellido y Nombre del Responsable": "RAFAEL BERNAEZ",
-                "Rif": "J-50301107-6"
-            },
-            "INVERSIONES ELECTROMTEC 2020  C.A": {
-                "Apellido y Nombre del Responsable": "IGOR REGALADO",
-                "Rif": "J-50082533-1"
-            },
-            "INVERSIONES PROYECTOS LG 721  C.A": {
-                "Apellido y Nombre del Responsable": "DOMENICO LOLLI",
-                "Rif": "J-29831930-5"
-            },
-            "INVERSIONES TELE MATIK 321 C.A": {
-                "Apellido y Nombre del Responsable": "EDICSON TORRES - KATIUSKA",
-                "Rif": "J-29867936-0"
-            },
-            "JR TECH SUPPORT  C.A": {
-                "Apellido y Nombre del Responsable": "YENSY MARTINEZ",
-                "Rif": "J-50032575-4"
-            },
-            "LG ALPHA SOLUCIONES  C.A": {
-                "Apellido y Nombre del Responsable": "GILBERTO BERNAEZ",
-                "Rif": "J-50319061-2"
-            },
-            "MULTI INVERSIONES LA LOVEREÑA C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS TOLEDO",
-                "Rif": "J-40492572-4"
-            },
-            "MULTISERVICIOS DAYRA-TEC  C.A": {
-                "Apellido y Nombre del Responsable": "MARINES GOMEZ",
-                "Rif": "J-50331914-3"
-            },
-            "PHONE MARKET STAR C.A": {
-                "Apellido y Nombre del Responsable": "NELSON MORA",
-                "Rif": "J-30919375-9"
-            },
-            "PROMOCIONES Y MERCADEO J FRANCHI C.A": {
-                "Apellido y Nombre del Responsable": "JOSE FRANCHI",
-                "Rif": "J-31574714-6"
-            },
-            "ROM-AR SERVICIOS Y MANTENIMIENTO  C.A": {
-                "Apellido y Nombre del Responsable": "ELENA RUIZ",
-                "Rif": "J-31128189-4"
-            },
-            "SERVICIOS DE TECNOLOGIA E INNOVACION (SERVITECH)  C.A": {
-                "Apellido y Nombre del Responsable": "JHOAN CELIS",
-                "Rif": "J-50028078-5"
-            },
-            "SERVICIOS INTEGRALES RFCF  C.A": {
-                "Apellido y Nombre del Responsable": "CESAR",
-                "Rif": "J-40387720-3"
-            },
-            "SERVICIOS J&G SOLUTION  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS BERNAEZ",
-                "Rif": "J-50201745-3"
-            },
-            "SERVICIOS R G C.A": {
-                "Apellido y Nombre del Responsable": "NELSON PORRA",
-                "Rif": "J-29624230-5"
-            },
-            "SERVICIOS TEALCA C.A": {
-                "Apellido y Nombre del Responsable": "FRANKLYN MENDOZA",
-                "Rif": "J-31521527-6"
-            },
-            "SERVINDRECO C.A": {
-                "Apellido y Nombre del Responsable": "OSCAR GUERRERO",
-                "Rif": "J-31347293-0"
-            },
-            "SUMINISTROS INDUSTRIALES JAMIG C.A": {
-                "Apellido y Nombre del Responsable": "MIGUEL PEREZ",
-                "Rif": "J-40990643-4"
-            },
-            "SYCO 73  C.A": {
-                "Apellido y Nombre del Responsable": "JUAN SIVIRA",
-                "Rif": "J-31762306-1"
-            },
-            "TELECOMUNICACIONES JD SISTEM  C.A": {
-                "Apellido y Nombre del Responsable": "FLAVIA GOMEZ",
-                "Rif": "J-50126527-5"
-            },
-            "TELEIBARRA CA&EC  C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS IBARRA",
-                "Rif": "J-50481799-6"
-            },
-            "W&S TECNOMARKET C.A": {
-                "Apellido y Nombre del Responsable": "YERWILL SILVA",
-                "Rif": "J-30993225-0"
-            },
-            "WV SOLUCIONES TECNO-EMPRESARIALES  C.A": {
-                "Apellido y Nombre del Responsable": "WILLIAN VALERO",
-                "Rif": "J-40973178-2"
-            }
+            "Seleccione una Empresa": { "Apellido y Nombre del Responsable": "", "Rif": "" },
+            "Contratista A C.A.": { "Apellido y Nombre del Responsable": "Pérez Juan", "Rif": "J-12345678-0" },
+            "Servicios B, S.A.": { "Apellido y Nombre del Responsable": "Gómez María", "Rif": "G-98765432-1" },
+            "Construcciones Zulia C.L.": { "Apellido y Nombre del Responsable": "López Carlos", "Rif": "C-11223344-5" }
         };
 
-        // Estructura inicial por defecto 
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
-                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
                 { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
@@ -460,50 +359,54 @@
             { title: "III. Información del Trabajo/Obra", fields: []}
         ];
         
+        // Función de utilidad para manejar la compatibilidad de nombres de campos antiguos y nuevos
+        function getDataLabel(data, newLabel, oldLabel) {
+            return data[newLabel] !== undefined ? data[newLabel] : (data[oldLabel] !== undefined ? data[oldLabel] : 'N/A (Etiqueta Antigua)');
+        }
+
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
 
         async function loadInitialData() {
             try {
-                // Cargar Estructura del Formulario y Contador
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 if (configDoc.exists) {
                     const data = configDoc.data();
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     
-                    // Lógica de Migración: si faltan campos fijos (como el nuevo de usuario), los agregamos.
+                    // Lógica de Migración (Asegurar campos fijos nuevos)
                     const infoGeneralFields = formStructure[0].fields;
                     const hasUserField = infoGeneralFields.some(f => f.id === 'user_auto_fill');
                     if (!hasUserField) {
-                         // Insertar el campo de usuario en la posición correcta (antes de la fecha)
                          const dateIndex = infoGeneralFields.findIndex(f => f.id === 'current_date');
                          if (dateIndex !== -1) {
                              infoGeneralFields.splice(dateIndex, 0, DEFAULT_FORM_STRUCTURE[0].fields[2]);
                          } else {
-                             // Si no encuentra la fecha, lo pone al final de la sección I
                              infoGeneralFields.push(DEFAULT_FORM_STRUCTURE[0].fields[2]);
                          }
                     }
 
-                    // Lógica de Migración de títulos (siempre los mantenemos con el romano)
                     if (formStructure.length >= 3) {
-                         if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
-                         if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
-                         if (formStructure[2].title === "Información del Trabajo/Obra" || formStructure[2].title === "III. Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
+                         if (!formStructure[0].title.startsWith("I.")) formStructure[0].title = "I. Información General";
+                         if (!formStructure[1].title.startsWith("II.")) formStructure[1].title = "II. Información de la Contratista";
+                         if (!formStructure[2].title.startsWith("III.")) formStructure[2].title = "III. Información del Trabajo/Obra";
                     }
 
                     otCounter = data.otCounter || 1;
                 } else {
-                    // Primera vez: usa el valor por defecto y guárdalo
                     formStructure = DEFAULT_FORM_STRUCTURE;
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo
-                const ordersSnapshot = await ORDERS_COLLECTION.get();
-                workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Cargar Órdenes de Trabajo y escuchar cambios en tiempo real
+                ORDERS_COLLECTION.onSnapshot(snapshot => {
+                    workOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    recalculateOtCounter();
+                    renderAllTables();
+                }, error => {
+                    console.error("Error al escuchar órdenes:", error);
+                    alert("Error en la conexión a la base de datos en tiempo real.");
+                });
 
-                // Asegurar que el contador esté correcto al inicio
-                recalculateOtCounter();
 
             } catch (e) {
                 console.error("Error cargando datos iniciales: ", e);
@@ -528,21 +431,16 @@
             }
         }
         
-        // MODIFICADA: Lógica de Roles
+        // Lógica de Roles
         function getRoleFromEmail(email) {
-            if (ADMIN_EMAILS.includes(email)) {
-                return 'admin';
-            } 
-            else if (VIEWER_EMAILS.includes(email)) { 
-                return 'viewer'; 
-            } 
-            else {
-                return 'normal'; 
-            }
+            if (ADMIN_EMAILS.includes(email)) return 'admin';
+            if (VIEWER_EMAILS.includes(email)) return 'viewer'; 
+            return 'normal'; 
         }
 
-        // SIN CAMBIOS MAYORES
+        // Lógica de Autenticación
         async function login() {
+            // ... (Lógica de login sin cambios) ...
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const errorElement = document.getElementById('login-error');
@@ -553,7 +451,6 @@
                 const user = userCredential.user;
                 
                 let role = getRoleFromEmail(user.email); 
-                
                 currentRole = role;
                 
                 document.getElementById('login-view').style.display = 'none';
@@ -574,7 +471,6 @@
             }
         }
 
-        // SIN CAMBIOS
         function logout() {
             firebase.auth().signOut().then(() => {
                 document.getElementById('email').value = '';
@@ -586,11 +482,11 @@
             });
         }
 
-        // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
         async function initializeApp(role) {
             const isCreator = (role === 'admin' || role === 'normal');
 
             document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            document.getElementById('admin-status-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
             document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
             
             await loadInitialData(); 
@@ -605,10 +501,9 @@
             }
             
             renderWorkOrderForm();
-            renderOrdersTable();
+            renderAllTables();
         }
 
-        // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
         window.onload = function() {
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
@@ -640,12 +535,16 @@
             if (evt) evt.currentTarget.className += " active";
 
             if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
-            else if (tabName === 'view-orders') renderOrdersTable();
+            else if (tabName === 'view-orders') renderOrdersTable('view-orders');
+            else if (tabName === 'finalize-orders') renderOrdersTable('finalize-orders');
+            else if (tabName === 'finished-orders') renderOrdersTable('finished-orders');
+            else if (tabName === 'cancel-orders') renderOrdersTable('cancel-orders');
+            else if (tabName === 'cancelled-orders') renderOrdersTable('cancelled-orders');
+            else if (tabName === 'admin-status-change') renderOrdersTable('admin-status-change');
             else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
         
-        // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
-
+        // ... (Funciones de Edición de Formulario sin cambios mayores) ...
         function renderFormEditor() {
             const editorDiv = document.getElementById('form-editor');
             editorDiv.innerHTML = '';
@@ -665,7 +564,6 @@
 
                 const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
                 section.fields.forEach((field, fieldIndex) => {
-                    // user-auto-fill al listado de campos fijos
                     if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') {
                         fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
                         return;
@@ -704,7 +602,6 @@
         }
         
         function updateSectionTitle(secIndex, newTitle) { formStructure[secIndex].title = newTitle; }
-
         function updateFieldProperty(secIndex, fieldIndex, prop, value) {
             formStructure[secIndex].fields[fieldIndex][prop] = value;
             if (prop === 'type') {
@@ -714,11 +611,9 @@
                 renderFormEditor();
             }
         }
-
         function updateSelectOptions(secIndex, fieldIndex, value) {
             formStructure[secIndex].fields[fieldIndex].options = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
         }
-
         function addField(secIndex, type) {
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
@@ -730,15 +625,12 @@
             formStructure[secIndex].fields.push(newField);
             renderFormEditor();
         }
-
         function removeField(secIndex, fieldIndex) {
-            // user-auto-fill al listado de campos fijos
             const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
                             formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
                             formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
                             formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill';
             
-            // La primera sección tiene los 4 campos fijos iniciales
             if (secIndex === 0 && isFixed) {
                 alert("🚫 No se pueden eliminar los campos fijos y obligatorios de la primera sección.");
                 return;
@@ -750,35 +642,21 @@
         }
 
 
-        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
+        // *** 3. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
         
-        // NUEVA FUNCIÓN: Formatea fecha YYYY-MM-DD o DD/MM/YYYY a DD/MM/YYYY
         function formatDateToDDMMYYYY(dateString) {
             if (!dateString) return 'N/A';
-            
-            // Si la fecha ya está en formato DD/MM/YYYY, se asume que es la correcta (campos fijos)
-            if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                return dateString;
-            }
-
-            // Para fechas YYYY-MM-DD (inputs de tipo date)
+            if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateString;
             const parts = dateString.split('-');
             if (parts.length === 3) {
                 const [year, month, day] = parts;
                 return `${day}/${month}/${year}`;
             }
-
-            // Si no coincide con ninguno, devuelve el original
             return dateString;
         }
 
-        /**
-         * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
-         * @returns {string} Fecha en formato DD/MM/AAAA.
-         */
         function getCurrentCaracasDate() {
             const now = new Date();
-            // Usamos las opciones de formato y la zona horaria de Caracas para forzar la fecha GMT-4.
             return now.toLocaleDateString('es-ES', { 
                 timeZone: 'America/Caracas',
                 day: '2-digit',
@@ -787,9 +665,6 @@
             });
         }
         
-        /**
-         * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
-         */
         function autofillContratistaData(selectElement) {
             const selectedCompanyName = selectElement.value;
             const data = CONTRATISTAS_DATA[selectedCompanyName];
@@ -820,20 +695,16 @@
             document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
         }
 
-
         function toggleConditionalSection(type) {
             const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
             const ispSection = document.getElementById('conditional_isp_section');
             const nodeAccessButton = document.getElementById('check_node_acceso');
             const ispButton = document.getElementById('check_isp');
 
-            // 1. Limpiar y resetear ambas secciones
             nodeAccessSection.style.display = 'none';
             ispSection.style.display = 'none';
             nodeAccessButton.classList.remove('active');
             ispButton.classList.remove('active');
-            
-            // 2. Resetear inputs y selecciones
             
             const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'descripcion', 'abono_mensual'];
             const selectsToReset = ['pago_por_realizado'];
@@ -845,7 +716,7 @@
                 });
                 selectsToReset.forEach(field => {
                     const el = document.getElementById(`${prefix}_${field}`);
-                    if (el) el.value = 'Inter'; // Valor por defecto
+                    if (el) el.value = 'Inter';
                 });
                 
                 document.getElementById(`${prefix}_total_display`).textContent = '0.00';
@@ -853,7 +724,6 @@
             });
 
 
-            // 3. Mostrar la sección seleccionada
             if (type === 'node_acceso') {
                 nodeAccessSection.style.display = 'block';
                 nodeAccessButton.classList.add('active');
@@ -868,14 +738,13 @@
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
                  return;
             }
             
-            // Renderizar secciones dinámicas
             formStructure.forEach(section => {
                 const sectionDiv = document.createElement('div');
                 sectionDiv.className = 'form-section';
@@ -906,33 +775,13 @@
 
 
                     switch (field.type) {
-                        case 'static':
-                            value = field.value;
-                            inputHTML = `<input type="text" value="${value}" disabled>`;
-                            break;
-                        case 'ot_counter':
-                            value = otCounter.toString();
-                            inputHTML = `<input type="text" value="${value}" disabled>`;
-                            break;
-                        // TIPO DE CAMPO: user-auto-fill
-                        case 'user-auto-fill':
-                            value = currentUserEmail;
-                            inputHTML = `<input type="text" value="${value}" disabled>`;
-                            break;
-                        case 'date-auto':
-                            value = todayCaracas;
-                            inputHTML = `<input type="text" value="${value}" disabled>`; 
-                            break;
-                        case 'date-input':
-                            inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
-                            break;
-                        case 'text':
-                        case 'number':
-                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
-                            break;
-                        case 'textarea':
-                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}></textarea>`;
-                            break;
+                        case 'static': value = field.value; inputHTML = `<input type="text" value="${value}" disabled>`; break;
+                        case 'ot_counter': value = otCounter.toString(); inputHTML = `<input type="text" value="${value}" disabled>`; break;
+                        case 'user-auto-fill': value = currentUserEmail; inputHTML = `<input type="text" value="${value}" disabled>`; break;
+                        case 'date-auto': value = todayCaracas; inputHTML = `<input type="text" value="${value}" disabled>`; break;
+                        case 'date-input': inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`; break;
+                        case 'text': case 'number': inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`; break;
+                        case 'textarea': inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}></textarea>`; break;
                         case 'select':
                             inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
                                 ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
@@ -951,38 +800,24 @@
                 formElement.appendChild(sectionDiv);
             });
             
-            // AÑADIR BOTONES DE CHECK CONDICIONAL AL FINAL
             formElement.innerHTML += `
                 <h4>Tipo de Construcción (Selección Única)</h4>
-                <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
-                    La Construcción es de un Nodo de Acceso
-                </button>
-                <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
-                    La Construcción es de un ISP
-                </button>
-                <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">
-                    ❌ Eliminar / Desmarcar Selección
-                </button>
+                <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">La Construcción es de un Nodo de Acceso</button>
+                <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">La Construcción es de un ISP</button>
+                <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">❌ Eliminar / Desmarcar Selección</button>
             `;
             
-            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN NODO DE ACCESO ---
             formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Condicionales: La Construcción es de Nodo de Acceso');
-
-            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
             formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
             
-            // Inicializar las secciones ocultas
             toggleConditionalSection(null);
             
-            // Inicializar autollenado con el valor por defecto
             const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
             autofillSelects.forEach(select => autofillContratistaData(select));
         }
 
         function renderConditionalSection(prefix, title) {
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
-            
-            // NOTA: El campo de cálculo ahora usa el nombre "Pago x VGT a cargo de Inter (*):"
             const totalDisplayLabel = "Pago x VGT a cargo de Inter (*):"; 
 
             return `
@@ -998,10 +833,7 @@
                             <option value="Cliente">Cliente</option>
                         </select></p>
                         
-                    
                     <hr>
-                    
-                    <!-- CAMPO DE CÁLCULO RENOMBRADO -->
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
                         <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
@@ -1019,45 +851,29 @@
                             <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
                         </div>
                     </div>
-                    
                     <hr>
-
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
                         <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required></textarea></p>
                     
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
                         <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
-                        
                 </div>
             `;
         }
 
-        // SIN CAMBIOS
         function sanitizeInput(str) {
             if (typeof str !== 'string' || !str) return str;
-            return str.replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;')
-                      .replace(/'/g, '&#039;');
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
         
-        // Función de utilidad para manejar la compatibilidad de nombres de campos antiguos y nuevos
-        // Intenta obtener el valor por la nueva etiqueta. Si no existe, intenta con la etiqueta antigua.
-        function getDataLabel(data, newLabel, oldLabel) {
-            return data[newLabel] !== undefined ? data[newLabel] : (data[oldLabel] !== undefined ? data[oldLabel] : 'N/A (Etiqueta Antigua)');
-        }
-
-
         async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
 
-            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
+            // ... (Lógica de validación sin cambios) ...
             for (const section of formStructure) {
                 for (const field of section.fields) {
-                    // user-auto-fill al listado de campos fijos
                     const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     
                     if (!field.required || isFixed) continue;
@@ -1076,7 +892,6 @@
                 if (firstInvalidField) break; 
             }
 
-            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
             if (!firstInvalidField && selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
@@ -1105,24 +920,21 @@
                 }
             }
 
-            // 3. MANEJO DEL ERROR
             if (firstInvalidField) {
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
-                
                 firstInvalidField.reportValidity();
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidField.focus();
                 return;
             }
 
+
             const formData = new FormData(form);
             const orderData = {};
             
-            // Obtener datos fijos
             const caracasDate = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
-            // 4. Recopilar datos estáticos y dinámicos del formulario principal
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -1131,7 +943,6 @@
                                 : field.id;
 
                     if (field.type === 'ot_counter') value = otCounter.toString();
-                    // TIPO DE CAMPO: user-auto-fill
                     else if (field.type === 'user-auto-fill') value = currentUserEmail; 
                     else if (field.type === 'date-auto') value = caracasDate;
                     else if (field.type === 'static') value = field.value;
@@ -1140,7 +951,6 @@
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
                     
-                    // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
                     if (field.type === 'date-input' && value) {
                         orderData[field.label] = formatDateToDDMMYYYY(value);
                     } else {
@@ -1149,69 +959,412 @@
                 });
             });
             
-            // 5. Recopilar datos de la sección condicional seleccionada 
             orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
-                
                 calculateNewTotal(prefix); 
                 
-                // --- DEFINICIÓN DE ETIQUETAS PARA MIGRACIÓN ---
                 const NEW_VGT_LABEL = 'Pago x VGT a cargo de Inter';
-                const OLD_VGT_LABEL = 'Cálculo: Precio Unitario x Puntos = Total'; // Etiqueta antigua eliminada
-                // ---------------------------------------------
-                
-                // NOTA IMPORTANTE: Si la orden ya existía con la etiqueta antigua, el campo existirá en data.
-                // Sin embargo, si es una orden nueva, se guarda con la etiqueta NUEVA.
+                const OLD_CALC_LABEL = 'Cálculo: Precio Unitario x Puntos = Total'; 
                 
                 orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
                 orderData[`${prefix} | Pago por realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
                 
-                // Guarda el valor total con la ETIQUETA NUEVA
+                // Guardar valor total con etiquetas nuevas y antiguas para compatibilidad
                 orderData[`${prefix} | ${NEW_VGT_LABEL}`] = formData.get(`${prefix}_total_hidden`);
+                orderData[`${prefix} | ${OLD_CALC_LABEL}`] = formData.get(`${prefix}_total_hidden`);
 
                 orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
                 orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); 
                 
-                // Guardamos la etiqueta antigua para asegurar la compatibilidad inversa si fuera necesario
-                // Aunque no se muestra en el formulario, es una buena práctica si el dato sigue siendo relevante.
-                orderData[`${prefix} | ${OLD_VGT_LABEL}`] = formData.get(`${prefix}_total_hidden`); // Se guarda con la etiqueta antigua también, pero con el valor nuevo
-
-                
                 orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value);
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value);
             }
+            
+            // *** CAMBIO CRÍTICO: AGREGAR ESTADO INICIAL ***
+            orderData.status = 'En Progreso'; 
 
-
-            // 6. **GUARDAR EN FIREBASE**
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
-                // 7. Actualizar array local y contador
                 orderData.id = docRef.id; 
-                workOrders.push(orderData);
                 otCounter++;
                 
-                // 8. Guardar la nueva estructura/contador
                 await saveFormStructure(true); 
 
-                // 9. Generar PDF
                 generatePDF(orderData);
 
-                // 10. Reiniciar UI
                 form.reset();
                 renderWorkOrderForm(); 
-                renderOrdersTable(); 
                 
+                // Las tablas se actualizarán solas gracias al onSnapshot
+
             } catch (e) {
                 console.error("Error al crear la orden:", e);
-                alert("Error al guardar la orden de trabajo en Firebase. Verifique sus reglas de seguridad.");
+                alert("Error al guardar la orden de trabajo en Firebase. Verifique sus reglas de seguridad. Detalles: " + e.message);
             }
         }
 
-        // *** 6. GENERACIÓN DE PDF Y VISUALIZACIÓN DE ÓRDENES ***
+        // *** 4. MODAL DE CAMBIO DE ESTADO ***
 
+        function openStatusModal(orderId, actionType) {
+            currentOrderToModify = workOrders.find(o => o.id === orderId);
+            if (!currentOrderToModify) return;
+
+            const title = actionType === 'finalize' ? "Información Detallada de Finalización" : "Información Detallada de Cancelación";
+            const buttonText = actionType === 'finalize' ? "Aceptar (Finalizar)" : "Aceptar (Cancelar)";
+            const otNumber = currentOrderToModify['Orden de Trabajo'];
+
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-order-info').innerHTML = `Se cambiará el estado de la OT Nro. <strong>${otNumber}</strong> a <strong>${actionType === 'finalize' ? 'Finalizada' : 'Cancelada'}</strong>.`;
+            document.getElementById('modal-action-button').textContent = buttonText;
+            document.getElementById('modal-action-button').setAttribute('onclick', `executeStatusAction('${orderId}', '${actionType}')`);
+            document.getElementById('detail-info').value = ''; 
+            
+            document.getElementById('status-modal-overlay').style.display = 'flex';
+            document.getElementById('detail-info').focus();
+        }
+
+        function closeStatusModal() {
+            document.getElementById('status-modal-overlay').style.display = 'none';
+            currentOrderToModify = null;
+        }
+
+        async function executeStatusAction(orderId, actionType) {
+            const detailInfo = document.getElementById('detail-info').value.trim();
+            if (!detailInfo) {
+                alert("La Información Detallada es obligatoria para continuar.");
+                return;
+            }
+            
+            closeStatusModal(); 
+
+            const order = workOrders.find(o => o.id === orderId);
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO DESCONOCIDO';
+            const caracasDate = getCurrentCaracasDate();
+            const newStatus = actionType === 'finalize' ? 'Finalizada' : 'Cancelada';
+
+            try {
+                const updateData = {
+                    status: newStatus,
+                    [`${newStatus} | Fecha`]: caracasDate,
+                    [`${newStatus} | Usuario`]: currentUserEmail,
+                    [`${newStatus} | Detalle`]: sanitizeInput(detailInfo)
+                };
+
+                await ORDERS_COLLECTION.doc(orderId).update(updateData);
+                alert(`✅ Orden de Trabajo Nro. ${order['Orden de Trabajo']} cambiada a estado "${newStatus}".`);
+
+                // Generar el PDF de Constancia/Cancelación
+                if (actionType === 'finalize') {
+                    generateFinalizationPDF(order, currentUserEmail, caracasDate, detailInfo);
+                } else if (actionType === 'cancel') {
+                    generateCancellationPDF(order, currentUserEmail, caracasDate, detailInfo);
+                }
+                
+                // Las tablas se actualizan automáticamente
+
+            } catch (e) {
+                console.error(`Error al cambiar estado a ${newStatus}:`, e);
+                alert(`Error al actualizar el estado en Firebase: ${e.message}`);
+            }
+        }
+        
+        // Función para Administrador: Revertir a En Progreso
+        async function revertStatusToInProgress(orderId, otNumber) {
+             if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede revertir estados.');
+                return;
+            }
+            if (!confirm(`¿Está seguro de que desea revertir la Orden Nro. ${otNumber} al estado "En Progreso"?`)) {
+                return;
+            }
+            
+            try {
+                await ORDERS_COLLECTION.doc(orderId).update({
+                    status: 'En Progreso',
+                    'Finalizada | Fecha': firebase.firestore.FieldValue.delete(),
+                    'Finalizada | Usuario': firebase.firestore.FieldValue.delete(),
+                    'Finalizada | Detalle': firebase.firestore.FieldValue.delete(),
+                    'Cancelada | Fecha': firebase.firestore.FieldValue.delete(),
+                    'Cancelada | Usuario': firebase.firestore.FieldValue.delete(),
+                    'Cancelada | Detalle': firebase.firestore.FieldValue.delete()
+                });
+                alert(`✅ Orden Nro. ${otNumber} revertida exitosamente a "En Progreso".`);
+                // Las tablas se actualizan automáticamente
+            } catch (e) {
+                console.error("Error al revertir estado:", e);
+                alert(`Error al revertir el estado: ${e.message}`);
+            }
+        }
+
+        // *** 5. GENERACIÓN DE PDFS DE CONSTANCIA/CANCELACIÓN ***
+        
+        function generateFinalizationPDF(order, user, date, detail) {
+            const otNumber = order['Orden de Trabajo'];
+            const fileName = `Constancia_Finalizacion_OT_${otNumber}_${date.replace(/\//g, '-')}.pdf`;
+            
+            const content = `
+                <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
+                    <h1 style="color: var(--color-status-completed); text-align: center; border-bottom: 3px solid var(--color-status-completed); padding-bottom: 15px;">
+                        Constancia de Finalización de la Orden de Trabajo Nro. ${otNumber}
+                    </h1>
+                    <table style="width: 100%; margin-top: 30px; font-size: 1.1em;">
+                        <tr><td style="width: 30%; font-weight: bold;">Usuario de finalización:</td><td style="width: 70%;">${user}</td></tr>
+                        <tr><td style="width: 30%; font-weight: bold;">Fecha Actual:</td><td style="width: 70%;">${date}</td></tr>
+                    </table>
+                    
+                    <h3 style="color: #4682B4; margin-top: 40px; border-bottom: 1px solid #B0C4DE;">Información Detallada de Finalización</h3>
+                    <p style="white-space: pre-wrap; background-color: #f7fbff; padding: 15px; border-radius: 8px;">${detail}</p>
+                    
+                    <div class="pdf-signatures" style="margin-top: 100px;"> 
+                        <span>
+                            Firma Contratista:<hr>
+                        </span>
+                        <span>
+                            Firma Responsable:<hr>
+                        </span>
+                    </div>
+                </div>
+            `;
+            generateDocument(content, fileName);
+        }
+
+        function generateCancellationPDF(order, user, date, detail) {
+            const otNumber = order['Orden de Trabajo'];
+            const fileName = `Constancia_Cancelacion_OT_${otNumber}_${date.replace(/\//g, '-')}.pdf`;
+            
+            const content = `
+                <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
+                    <h1 style="color: var(--color-status-cancelled); text-align: center; border-bottom: 3px solid var(--color-status-cancelled); padding-bottom: 15px;">
+                        Cancelación de la Orden de Trabajo Nro. ${otNumber}
+                    </h1>
+                    <table style="width: 100%; margin-top: 30px; font-size: 1.1em;">
+                        <tr><td style="width: 30%; font-weight: bold;">Usuario de cancelación:</td><td style="width: 70%;">${user}</td></tr>
+                        <tr><td style="width: 30%; font-weight: bold;">Fecha Actual:</td><td style="width: 70%;">${date}</td></tr>
+                    </table>
+                    
+                    <h3 style="color: #4682B4; margin-top: 40px; border-bottom: 1px solid #B0C4DE;">Información Detallada de Cancelación</h3>
+                    <p style="white-space: pre-wrap; background-color: #f7fbff; padding: 15px; border-radius: 8px;">${detail}</p>
+                    
+                    <div class="pdf-signatures" style="margin-top: 100px; justify-content: center;"> 
+                        <span style="width: 60%; text-align: center;">
+                            Firma Responsable:<hr>
+                        </span>
+                    </div>
+                </div>
+            `;
+            generateDocument(content, fileName);
+        }
+        
+        // Función genérica de generación de PDF para Constancias
+        function generateDocument(contentHTML, fileName) {
+             const element = document.createElement('div');
+             element.innerHTML = contentHTML;
+            
+             const opt = {
+                margin: 20, 
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+             };
+             
+             html2pdf().from(element).set(opt).save();
+        }
+
+        // *** 6. VISUALIZACIÓN DE ÓRDENES Y UTILERÍA ***
+        
+        function renderStatusBadge(status) {
+             return `<span class="status-badge status-${status.replace(/\s/g, '')}">${status}</span>`;
+        }
+
+        function recalculateOtCounter() {
+            if (workOrders.length === 0) {
+                otCounter = 1;
+                return;
+            }
+
+            const maxOt = workOrders.reduce((max, order) => {
+                const currentOt = parseInt(order['Orden de Trabajo'], 10); 
+                return currentOt > max ? currentOt : max;
+            }, 0); 
+            
+            otCounter = maxOt + 1;
+        }
+
+        async function deleteWorkOrder(orderId, otNumber) {
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes.');
+                return;
+            }
+
+            if (!confirm(`¿Está seguro de que desea eliminar la Orden de Trabajo Nro. ${otNumber}? Esta acción es irreversible y ajustará el contador.`)) {
+                return;
+            }
+            
+            try {
+                await ORDERS_COLLECTION.doc(orderId).delete();
+                // El onSnapshot actualizará la UI
+                alert(`✅ Orden de Trabajo Nro. ${otNumber} eliminada.`);
+
+            } catch (e) {
+                console.error("Error al eliminar la orden:", e);
+                alert("Error al eliminar la Orden de Trabajo de Firebase. Detalles: " + e.message);
+            }
+        }
+        
+        function downloadOrder(orderId) {
+            const order = workOrders.find(o => o.id === orderId);
+            if (order) {
+                // Función original para el PDF de la OT
+                generatePDF(order); 
+            } else {
+                alert('No se encontró la Orden de Trabajo para descargar.');
+            }
+        }
+        
+        function downloadStatusDocument(orderId, type) {
+            const order = workOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const user = order[`${type} | Usuario`] || 'N/A';
+            const date = order[`${type} | Fecha`] || 'N/A';
+            const detail = order[`${type} | Detalle`] || 'Sin detalles.';
+
+            if (type === 'Finalizada') {
+                generateFinalizationPDF(order, user, date, detail);
+            } else if (type === 'Cancelada') {
+                generateCancellationPDF(order, user, date, detail);
+            }
+        }
+
+        function renderAllTables() {
+            renderOrdersTable('view-orders');
+            renderOrdersTable('finalize-orders');
+            renderOrdersTable('finished-orders');
+            renderOrdersTable('cancel-orders');
+            renderOrdersTable('cancelled-orders');
+            if (currentRole === 'admin') {
+                 renderOrdersTable('admin-status-change');
+            }
+        }
+
+        function renderOrdersTable(tabId) {
+            let filteredOrders = [];
+            let tableId = '';
+            let actionText = '';
+            let actionFunc = '';
+
+            switch (tabId) {
+                case 'view-orders':
+                    filteredOrders = workOrders;
+                    tableId = 'orders-table';
+                    break;
+                case 'finalize-orders':
+                    filteredOrders = workOrders.filter(o => o.status === 'En Progreso');
+                    tableId = 'finalize-table';
+                    actionText = 'Finalizar';
+                    actionFunc = 'openStatusModal(order.id, \'finalize\')';
+                    break;
+                case 'finished-orders':
+                    filteredOrders = workOrders.filter(o => o.status === 'Finalizada');
+                    tableId = 'finished-table';
+                    break;
+                case 'cancel-orders':
+                    filteredOrders = workOrders.filter(o => o.status === 'En Progreso');
+                    tableId = 'cancel-table';
+                    actionText = 'Cancelar';
+                    actionFunc = 'openStatusModal(order.id, \'cancel\')';
+                    break;
+                case 'cancelled-orders':
+                    filteredOrders = workOrders.filter(o => o.status === 'Cancelada');
+                    tableId = 'cancelled-table';
+                    break;
+                case 'admin-status-change':
+                    if (currentRole !== 'admin') return;
+                    filteredOrders = workOrders.filter(o => o.status !== 'En Progreso');
+                    tableId = 'admin-status-table';
+                    actionText = 'Revertir a En Progreso';
+                    actionFunc = 'revertStatusToInProgress(order.id, order[\'Orden de Trabajo\'])';
+                    break;
+                default:
+                    return;
+            }
+
+            const tbody = document.getElementById(tableId).querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            filteredOrders.sort((a, b) => parseInt(b['Orden de Trabajo']) - parseInt(a['Orden de Trabajo'])); // Ordenar descendente por OT
+
+            filteredOrders.forEach(order => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = order['Orden de Trabajo'];
+                row.insertCell().textContent = order['Título del Formulario'];
+                
+                const actionCell = row.insertCell();
+                actionCell.style.whiteSpace = 'nowrap';
+
+
+                if (tabId === 'view-orders') {
+                     // Columna extra para el estado
+                    row.insertCell().innerHTML = renderStatusBadge(order.status || 'En Progreso'); 
+                    // Columna de fecha
+                    row.insertCell().textContent = order['Fecha Actual'] || 'N/A';
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = '⬇️ OT PDF';
+                    downloadBtn.style.backgroundColor = 'var(--color-accent)'; 
+                    downloadBtn.style.color = 'white';
+                    downloadBtn.onclick = () => downloadOrder(order.id);
+                    actionCell.appendChild(downloadBtn);
+                    
+                    if (currentRole === 'admin') {
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.textContent = '🗑️ Eliminar';
+                        deleteBtn.style.backgroundColor = 'var(--color-error)';
+                        deleteBtn.style.color = 'white';
+                        deleteBtn.style.marginLeft = '5px';
+                        deleteBtn.onclick = () => deleteWorkOrder(order.id, order['Orden de Trabajo']);
+                        actionCell.appendChild(deleteBtn);
+                    }
+                }
+                else if (tabId === 'finalize-orders' || tabId === 'cancel-orders' || tabId === 'admin-status-change') {
+                    // Estas tablas son más sencillas
+                    row.insertCell().textContent = order['Fecha Actual'] || 'N/A';
+                    
+                    if (tabId === 'admin-status-change') {
+                        // Columna de Estado Actual para la pestaña Admin
+                        row.insertCell().innerHTML = renderStatusBadge(order.status);
+                    }
+                    
+                    const actionBtn = document.createElement('button');
+                    actionBtn.textContent = actionText;
+                    actionBtn.style.backgroundColor = (tabId === 'finalize-orders') ? 'var(--color-success)' : 
+                                                    (tabId === 'cancel-orders') ? 'var(--color-error)' : 'var(--color-warning)';
+                    actionBtn.style.color = 'white';
+                    actionBtn.setAttribute('onclick', actionFunc.replace(/order.id/g, `'${order.id}'`).replace(/order\['Orden de Trabajo'\]/g, `'${order['Orden de Trabajo']}'`));
+                    actionCell.appendChild(actionBtn);
+
+                } else if (tabId === 'finished-orders' || tabId === 'cancelled-orders') {
+                    const statusType = tabId === 'finished-orders' ? 'Finalizada' : 'Cancelada';
+                    
+                    row.insertCell().textContent = order[`${statusType} | Fecha`] || 'N/A';
+                    row.insertCell().textContent = order[`${statusType} | Usuario`] || 'N/A';
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = `⬇️ Constancia ${statusType === 'Finalizada' ? 'F' : 'C'} PDF`;
+                    downloadBtn.style.backgroundColor = 'var(--color-primary)'; 
+                    downloadBtn.style.color = 'var(--color-text)';
+                    downloadBtn.onclick = () => downloadStatusDocument(order.id, statusType);
+                    actionCell.appendChild(downloadBtn);
+                }
+            });
+        }
+
+
+        // GENERACIÓN DE PDF DE ORDEN DE TRABAJO (Sin cambios mayores, solo la utilería)
         function generatePDF(data) {
             const otNumber = data['Orden de Trabajo'];
             const creationDate = data['Fecha Actual'] || 'N/A';
@@ -1219,17 +1372,14 @@
             
             const secondaryHeader = `Orden de Trabajo Nro. ${otNumber}`;
             
-            // --- ETIQUETAS DE COMPATIBILIDAD ---
             const NEW_VGT_LABEL = 'Pago x VGT a cargo de Inter';
             const OLD_CALC_LABEL = 'Cálculo: Precio Unitario x Puntos = Total';
-            // -----------------------------------
 
             let formContentHTML = `
                 <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
                     <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px;">${data['Título del Formulario']} Nro. ${otNumber}</h1>
             `;
             
-            // Campos de la cabecera (Fecha de Creación)
              formContentHTML += `
                  <div style="text-align: right; margin-top: -10px; margin-bottom: 20px; font-weight: bold; color: #555;">
                     Fecha de Emisión: ${data['Fecha Actual']}
@@ -1237,7 +1387,6 @@
              `;
 
 
-            // Contenido del Formulario por Secciones (Dinámicas)
             formStructure.forEach((section, secIndex) => {
                 
                 const breakAvoidStyle = (secIndex >= 2) ? 'style="page-break-inside: avoid;"' : ''; 
@@ -1249,10 +1398,8 @@
                     const label = field.label;
                     let value = data[label] || 'N/A';
                     
-                    // OMISIÓN DE CAMPOS DEL ENCABEZADO
                     if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual' || label === 'Fecha Creación Orden Trabajo') return;
                     
-                    // APLICAR FORMATO DE FECHA DD/MM/AAAA (YA ESTÁ HECHO EN generateWorkOrder, solo aseguramos)
                     const fieldDefinition = section.fields.find(f => f.label === label);
                     if (fieldDefinition && fieldDefinition.type === 'date-input' && value !== 'N/A') {
                         value = formatDateToDDMMYYYY(value);
@@ -1270,20 +1417,15 @@
                 formContentHTML += `</div>`; 
             });
             
-            // Contenido de las Secciones Condicionales (Fijas)
             const type = data['Tipo de Construcción Seleccionada'];
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                // ** USO DE LA FUNCIÓN getDataLabel PARA COMPATIBILIDAD **
-                
-                // 1. Obtener el valor del TOTAL CALCULADO (busca la etiqueta NUEVA, sino la ANTIGUA)
                 const totalCalculado = getDataLabel(data, 
                     `${prefix} | ${NEW_VGT_LABEL}`, 
                     `${prefix} | ${OLD_CALC_LABEL}` 
                 ) || '0.00'; 
                 
-                // 2. Obtener los valores componentes (asumimos que estos NO cambiaron de etiqueta)
                 const costoProyectado = data[`${prefix} | Costo Proyectado de la Obra`] || 'N/A';
                 const pagoPorRealizado = data[`${prefix} | Pago por realizado por`] || 'N/A';
                 const precioUnitario = data[`${prefix} | Precio Unitario`] || 'N/A';
@@ -1299,7 +1441,6 @@
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Costo Proyectado de la Obra:</td><td style="width: 65%; padding: 8px;">${costoProyectado}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${pagoPorRealizado}</td></tr>
                     
-                    <!-- Campo de Cálculo Renombrado/Movido (Usa NEW_VGT_LABEL para la presentación) -->
                     <tr style="background-color: #e0f7fa;">
                         <td style="font-weight: bold; padding: 10px;">${NEW_VGT_LABEL}: (P. Unitario ${precioUnitario} x Puntos ${puntos})</td>
                         <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
@@ -1314,7 +1455,6 @@
             }
 
 
-            // --- SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
              formContentHTML += `
                 <div class="pdf-signatures" style="page-break-inside: avoid; page-break-before: auto;"> 
                     <span>
@@ -1355,94 +1495,6 @@
                     });
                 }
             }).save();
-
-        }
-        
-        function downloadOrder(orderId) {
-            const order = workOrders.find(o => o.id === orderId);
-            if (order) {
-                generatePDF(order);
-            } else {
-                alert('No se encontró la Orden de Trabajo para descargar.');
-            }
-        }
-        
-        // *** 7. LÓGICA DE ELIMINACIÓN Y CONTADOR ***
-
-        function recalculateOtCounter() {
-            if (workOrders.length === 0) {
-                otCounter = 1;
-                return;
-            }
-
-            const maxOt = workOrders.reduce((max, order) => {
-                const currentOt = parseInt(order['Orden de Trabajo'], 10); 
-                return currentOt > max ? currentOt : max;
-            }, 0); 
-            
-            otCounter = maxOt + 1;
-        }
-
-        async function deleteWorkOrder(orderId, otNumber) {
-            // Solo Administrador puede eliminar
-            if (currentRole !== 'admin') {
-                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes. Refuerce las reglas de seguridad de Firestore.');
-                return;
-            }
-
-            if (!confirm(`¿Está seguro de que desea eliminar la Orden de Trabajo Nro. ${otNumber}? Esta acción es irreversible y ajustará el contador.`)) {
-                return;
-            }
-            
-            try {
-                await ORDERS_COLLECTION.doc(orderId).delete();
-                workOrders = workOrders.filter(order => order.id !== orderId);
-                recalculateOtCounter();
-                await saveFormStructure(true); // Se usa true porque no debe mostrar mensaje de éxito al guardar el contador
-                renderOrdersTable();
-                renderWorkOrderForm(); 
-
-                alert(`✅ Orden de Trabajo Nro. ${otNumber} eliminada y contador actualizado a ${otCounter}.`);
-
-            } catch (e) {
-                console.error("Error al eliminar la orden:", e);
-                alert("Error al eliminar la Orden de Trabajo de Firebase. Detalles: " + e.message);
-            }
-        }
-
-
-        function renderOrdersTable() {
-            const tbody = document.getElementById('orders-table').querySelector('tbody');
-            tbody.innerHTML = '';
-
-            workOrders.forEach(order => {
-                const row = tbody.insertRow();
-                row.insertCell().textContent = order['Orden de Trabajo'];
-                row.insertCell().textContent = order['Título del Formulario'];
-                const creationDate = order['Fecha Actual'] || 'N/A';
-                row.insertCell().textContent = creationDate;
-                
-                const actionCell = row.insertCell();
-                
-                // Botón de Descarga PDF
-                const downloadBtn = document.createElement('button');
-                downloadBtn.textContent = '⬇️ PDF';
-                downloadBtn.style.backgroundColor = '#77DD77'; 
-                downloadBtn.style.color = 'white';
-                downloadBtn.onclick = () => downloadOrder(order.id);
-                actionCell.appendChild(downloadBtn);
-                
-                // Botón de Eliminar (Solo para Admin)
-                if (currentRole === 'admin') {
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.textContent = '🗑️ Eliminar';
-                    deleteBtn.style.backgroundColor = 'var(--color-error)';
-                    deleteBtn.style.color = 'white';
-                    deleteBtn.style.marginLeft = '5px';
-                    deleteBtn.onclick = () => deleteWorkOrder(order.id, order['Orden de Trabajo']);
-                    actionCell.appendChild(deleteBtn);
-                }
-            });
         }
 
     </script>
