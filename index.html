@@ -9,7 +9,7 @@
     <!-- LIBRERÍAS DE FIREBASE (Versión de Compatibilidad) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script>
     
     <style>
         /* Paleta de colores Pastel Azul/Gris */
@@ -86,20 +86,46 @@
             gap: 10px;
             /* Flex vertical para etiquetas y horizontal para inputs/resultados */
             flex-wrap: wrap; 
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #e0f7fa; /* Fondo azul claro para destacar el cálculo */
         }
-        .calculation-group label { flex-basis: 100%; margin-bottom: 5px; } /* Etiquetas ocupan todo el ancho */
-        .calculation-input { flex-basis: calc(50% - 20px); } /* Inputs lado a lado */
 
-        /* Estilo para el campo Total calculado */
+        /* Estilo para la etiqueta y el input del Total calculado */
+        .calculation-total-section {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .calculation-total-section label {
+            font-weight: bold;
+            flex-basis: auto; 
+            margin-right: 15px;
+            white-space: nowrap;
+        }
+
         .total-display {
-            background-color: #e0f7fa; /* Un color distinto para el total */
+            background-color: var(--color-white);
             font-weight: bold;
             text-align: right;
             border: 1px dashed var(--color-accent);
             padding: 10px;
             border-radius: 6px;
-            min-width: 150px;
             flex-grow: 1;
+        }
+
+        .calculation-input { 
+            flex-basis: calc(45% - 20px); 
+        } 
+        .calculation-group .formula-symbol {
+            font-size: 1.5em; 
+            font-weight: bold; 
+            margin-left: 5px; 
+            margin-right: 5px;
         }
 
         button {
@@ -276,7 +302,7 @@
 
         // Coloque aquí todos los correos electrónicos con acceso de solo visualización
         const VIEWER_EMAILS = [
-            'jorge.basualdo@inter.com.ve',
+            'visualizador1@empresa.com',
             'visualizador2@empresa.com',
             'solo.ver@tudominio.com' // Visualizador de ejemplo
         ]; 
@@ -502,17 +528,14 @@
             }
         }
         
-        // MODIFICADA: LÓGICA DE ROLES CENTRALIZADA (Usa las listas de ADMIN_EMAILS y VIEWER_EMAILS)
+        // MODIFICADA: Lógica de Roles
         function getRoleFromEmail(email) {
-            // Verifica si el correo está en la lista de administradores
             if (ADMIN_EMAILS.includes(email)) {
                 return 'admin';
             } 
-            // Verifica si el correo está en la lista de visualizadores
             else if (VIEWER_EMAILS.includes(email)) { 
                 return 'viewer'; 
             } 
-            // Rol por defecto: usuario normal (puede crear órdenes)
             else {
                 return 'normal'; 
             }
@@ -529,7 +552,6 @@
                 const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
                 const user = userCredential.user;
                 
-                // Determinar el rol usando la nueva función
                 let role = getRoleFromEmail(user.email); 
                 
                 currentRole = role;
@@ -566,24 +588,19 @@
 
         // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
         async function initializeApp(role) {
-            // Un creador es 'admin' o 'normal'
             const isCreator = (role === 'admin' || role === 'normal');
 
-            // 1. Control de visibilidad de pestañas
             document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
             document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
-            // 'view-orders' siempre visible para todos
             
             await loadInitialData(); 
             
-            // 2. Lógica para abrir la pestaña inicial correcta
             if (role === 'admin') {
                 renderFormEditor();
                 openTab(null, 'edit-form');
             } else if (role === 'normal') {
                 openTab(null, 'new-order');
             } else if (role === 'viewer') {
-                // El rol 'viewer' solo ve la tabla de órdenes
                 openTab(null, 'view-orders'); 
             }
             
@@ -595,7 +612,6 @@
         window.onload = function() {
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
-                    // Determinar rol usando la nueva función
                     let role = getRoleFromEmail(user.email); 
                     currentRole = role;
                     
@@ -735,6 +751,26 @@
 
 
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
+        
+        // NUEVA FUNCIÓN: Formatea fecha YYYY-MM-DD o DD/MM/YYYY a DD/MM/YYYY
+        function formatDateToDDMMYYYY(dateString) {
+            if (!dateString) return 'N/A';
+            
+            // Si la fecha ya está en formato DD/MM/YYYY, se asume que es la correcta (campos fijos)
+            if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return dateString;
+            }
+
+            // Para fechas YYYY-MM-DD (inputs de tipo date)
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                const [year, month, day] = parts;
+                return `${day}/${month}/${year}`;
+            }
+
+            // Si no coincide con ninguno, devuelve el original
+            return dateString;
+        }
 
         /**
          * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
@@ -799,7 +835,7 @@
             
             // 2. Resetear inputs y selecciones
             
-            const fieldsToReset = ['costo_proyectado', 'pago_vgt_inter', 'precio_unitario', 'puntos', 'descripcion', 'abono_mensual'];
+            const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'descripcion', 'abono_mensual'];
             const selectsToReset = ['pago_por_realizado'];
 
             ['node_acceso', 'isp'].forEach(prefix => {
@@ -946,6 +982,10 @@
         function renderConditionalSection(prefix, title) {
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
             
+            // NOTA: Se eliminó el campo ${prefix}_pago_vgt_inter. 
+            // El campo de cálculo ahora usa el nombre "Pago x VGT a cargo de Inter (*):"
+            const totalDisplayLabel = "Pago x VGT a cargo de Inter (*):"; 
+
             return `
                 <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
                     <h4>${title}</h4>
@@ -959,26 +999,26 @@
                             <option value="Cliente">Cliente</option>
                         </select></p>
                         
-                    <p><label for="${prefix}_pago_vgt_inter">Pago x VGT a cargo de Inter (*):</label>
-                        <input type="text" id="${prefix}_pago_vgt_inter" name="${prefix}_pago_vgt_inter" required></p>
                     
                     <hr>
                     
-                    <h4>Cálculo: Precio Unitario x Puntos = Total</h4>
+                    <!-- CAMPO DE CÁLCULO RENOMBRADO -->
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
                         <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
                         
-                        <span style="font-size: 1.5em; font-weight: bold; margin-left: 10px; margin-right: 10px;">X</span>
+                        <span class="formula-symbol">X</span>
                         
                         <label for="${prefix}_puntos">Puntos (*):</label>
                         <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
                         
-                        <span style="font-size: 1.5em; font-weight: bold; margin-left: 10px; margin-right: 10px;">=</span>
+                        <span class="formula-symbol">=</span>
                         
-                        <label style="flex-basis: auto;">Total:</label>
-                        <div id="${prefix}_total_display" class="total-display">0.00</div>
-                        <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
+                        <div class="calculation-total-section">
+                            <label style="flex-basis: auto;">${totalDisplayLabel}</label>
+                            <div id="${prefix}_total_display" class="total-display">0.00</div>
+                            <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
+                        </div>
                     </div>
                     
                     <hr>
@@ -1037,7 +1077,6 @@
                 const camposCondicionales = [
                     document.getElementById(`${prefix}_costo_proyectado`),
                     document.getElementById(`${prefix}_pago_por_realizado`),
-                    document.getElementById(`${prefix}_pago_vgt_inter`),
                     document.getElementById(`${prefix}_precio_unitario`),
                     document.getElementById(`${prefix}_puntos`),
                     document.getElementById(`${prefix}_descripcion`),
@@ -1045,7 +1084,7 @@
                 ];
 
                 for (const campo of camposCondicionales) {
-                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA') {
+                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
                         if (!campo.value.trim()) {
                             firstInvalidField = campo;
                             break;
@@ -1096,7 +1135,12 @@
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
                     
-                    orderData[field.label] = sanitizeInput(value) || 'N/A';
+                    // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
+                    if (field.type === 'date-input' && value) {
+                        orderData[field.label] = formatDateToDDMMYYYY(value);
+                    } else {
+                        orderData[field.label] = sanitizeInput(value) || 'N/A';
+                    }
                 });
             });
             
@@ -1110,11 +1154,13 @@
 
                 orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
                 orderData[`${prefix} | Pago por realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
-                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = sanitizeInput(document.getElementById(`${prefix}_pago_vgt_inter`).value);
                 
+                // RENOMBRADO EN EL GUARDADO (Utiliza el nombre del total calculado)
+                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
+
                 orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
                 orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); 
-                orderData[`${prefix} | Total (Precio Unitario x Puntos)`] = formData.get(`${prefix}_total_hidden`);
+                orderData[`${prefix} | Total (Precio Unitario x Puntos) - BORRAR`] = formData.get(`${prefix}_total_hidden`); // Se guarda temporalmente para referencia
                 
                 orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value);
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value);
@@ -1151,11 +1197,14 @@
 
         function generatePDF(data) {
             const otNumber = data['Orden de Trabajo'];
-            const creationDate = data['Fecha Creación Orden Trabajo'] || data['Fecha Actual'] || 'N/A';
+            const creationDate = data['Fecha Actual'] || 'N/A';
             const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
             
             const secondaryHeader = `Orden de Trabajo Nro. ${otNumber}`;
-
+            
+            // Objeto de datos que contiene solo las claves del formulario dinámico
+            const dynamicFormLabels = formStructure.flatMap(section => section.fields.map(field => field.label));
+            
             let formContentHTML = `
                 <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
                     <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px;">${data['Título del Formulario']} Nro. ${otNumber}</h1>
@@ -1164,7 +1213,7 @@
             // Campos de la cabecera (Fecha de Creación)
              formContentHTML += `
                  <div style="text-align: right; margin-top: -10px; margin-bottom: 20px; font-weight: bold; color: #555;">
-                    Fecha de Emisión: ${data['Fecha Actual'] || data['Fecha Creación Orden Trabajo']}
+                    Fecha de Emisión: ${data['Fecha Actual']}
                  </div>
              `;
 
@@ -1179,10 +1228,16 @@
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
-                    const value = data[label] || 'N/A';
+                    let value = data[label] || 'N/A';
                     
                     // OMISIÓN DE CAMPOS DEL ENCABEZADO
                     if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual' || label === 'Fecha Creación Orden Trabajo') return;
+                    
+                    // APLICAR FORMATO DE FECHA DD/MM/AAAA (YA ESTÁ HECHO EN generateWorkOrder, solo aseguramos)
+                    const fieldDefinition = section.fields.find(f => f.label === label);
+                    if (fieldDefinition && fieldDefinition.type === 'date-input' && value !== 'N/A') {
+                        value = formatDateToDDMMYYYY(value);
+                    }
 
 
                     formContentHTML += `
@@ -1201,21 +1256,30 @@
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                const precioUnitario = data[`${prefix} | Precio Unitario`] || '0.00';
-                const puntos = data[`${prefix} | Puntos`] || '0';
-                const totalCalculado = data[`${prefix} | Total (Precio Unitario x Puntos)`] || '0.00';
+                const pagoVgtLabel = 'Pago x VGT a cargo de Inter';
+                // El valor de este campo es el Total Calculado
+                const totalCalculado = data[`${prefix} | ${pagoVgtLabel}`] || '0.00'; 
                 
-                
+                // Usamos la variable oculta para extraer los componentes del cálculo si es necesario
+                const calculationReference = data[`${prefix} | Total (Precio Unitario x Puntos) - BORRAR`];
+                let precioUnitario = 'N/A';
+                let puntos = 'N/A';
+
+                // Intentar recuperar Precio Unitario y Puntos de los campos guardados
+                precioUnitario = data[`${prefix} | Precio Unitario`] || 'N/A';
+                puntos = data[`${prefix} | Puntos`] || 'N/A';
+
+
                 formContentHTML += `<div style="page-break-inside: avoid;">`; 
                 formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
 
                 formContentHTML += `
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Costo Proyectado de la Obra:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Costo Proyectado de la Obra`]}</td></tr>
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago por realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago por realizado por`]}</td></tr>
-                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago x VGT a cargo de Inter:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago x VGT a cargo de Inter`]}</td></tr>
                     
+                    <!-- Campo de Cálculo Renombrado/Movido -->
                     <tr style="background-color: #e0f7fa;">
-                        <td style="font-weight: bold; padding: 10px;">Cálculo: Precio Unitario (${precioUnitario}) x Puntos (${puntos}) = Total</td>
+                        <td style="font-weight: bold; padding: 10px;">${pagoVgtLabel}: (P. Unitario ${precioUnitario} x Puntos ${puntos})</td>
                         <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
                     </tr>
                     
@@ -1333,7 +1397,7 @@
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
                 row.insertCell().textContent = order['Título del Formulario'];
-                const creationDate = order['Fecha Actual'] || order['Fecha Creación Orden Trabajo'] || 'N/A';
+                const creationDate = order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
                 const actionCell = row.insertCell();
