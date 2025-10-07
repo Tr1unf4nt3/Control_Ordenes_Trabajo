@@ -2,277 +2,631 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition</title>
+    <title>Sistema de Órdenes de Trabajo | Firebase Cloud Edition (Seguro)</title>
     <!-- Librería para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
-    <!-- LIBRERÍAS DE FIREBASE (Versión Modular, compatible con Canvas) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, addDoc, deleteDoc, runTransaction, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- LIBRERÍAS DE FIREBASE (Versión de Compatibilidad) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        /* Paleta de colores Pastel Azul/Gris */
+        :root {
+            --color-bg: #F0F8FF;         /* Azul muy claro (Alice Blue) */
+            --color-primary: #ADD8E6;    /* Azul claro (Light Blue) */
+            --color-secondary: #B0C4DE;  /* Azul grisáceo (Light Steel Blue) */
+            --color-accent: #87CEFA;     /* Azul cielo claro (Light Sky Blue) */
+            --color-text: #36454F;       /* Gris carbón (Charcoal) */
+            --color-white: #ffffff;
+            --color-error: #FF6961;      /* Rojo pastel para errores */
+            --color-success: #77DD77;    /* Verde pastel para éxito */
+        }
 
-        // --- INICIO: REEMPLAZO DE CONFIGURACIÓN DEL USUARIO ---
+        /* Estilos Generales (Diseño Pastel) */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--color-white);
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        h2, h3, h4 {
+            color: var(--color-text);
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 5px;
+            margin-top: 25px;
+        }
+
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: var(--color-white);
+        }
+
+        /* Estilo para campos autollenados/deshabilitados */
+        input:disabled {
+            background-color: #f0f0f0; 
+            border: 1px dashed var(--color-secondary);
+        }
+
+        /* Estilo de validación (el navegador se encarga de lo básico, pero esto ayuda) */
+        input:invalid:not(:placeholder-shown), select:invalid:not(:placeholder-shown), textarea:invalid:not(:placeholder-shown) {
+            border: 2px solid var(--color-error);
+        }
+
+        .form-section {
+            border: 1px solid var(--color-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background-color: #f7fbff;
+        }
+
+        /* Contenedor Flex para Campos de Cálculo */
+        .calculation-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            /* Flex vertical para etiquetas y horizontal para inputs/resultados */
+            flex-wrap: wrap; 
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #e0f7fa; /* Fondo azul claro para destacar el cálculo */
+        }
+
+        /* Estilo para la etiqueta y el input del Total calculado */
+        .calculation-total-section {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .calculation-total-section label {
+            font-weight: bold;
+            flex-basis: auto; 
+            margin-right: 15px;
+            white-space: nowrap;
+        }
+
+        .total-display {
+            background-color: var(--color-white);
+            font-weight: bold;
+            text-align: right;
+            border: 1px dashed var(--color-accent);
+            padding: 10px;
+            border-radius: 6px;
+            flex-grow: 1;
+        }
+
+        .calculation-input { 
+            flex-basis: calc(45% - 20px); 
+        } 
+        .calculation-group .formula-symbol {
+            font-size: 1.5em; 
+            font-weight: bold; 
+            margin-left: 5px; 
+            margin-right: 5px;
+        }
+
+        button {
+            background-color: var(--color-accent);
+            color: var(--color-text);
+            padding: 10px 20px;
+            margin: 8px 5px 8px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--color-primary);
+        }
+        
+        /* Botones de Check Condicional */
+        .conditional-check {
+            background-color: var(--color-secondary);
+            color: var(--color-white);
+            font-weight: bold;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: block;
+            text-align: left;
+        }
+        .conditional-check.active {
+            background-color: var(--color-success);
+        }
+
+
+        /* Layout de Pestañas */
+        .tab { overflow: hidden; border-bottom: 1px solid var(--color-secondary); margin-bottom: 20px; }
+        .tablinks { background-color: var(--color-bg); color: var(--color-text); float: left; border: none; outline: none; cursor: pointer; padding: 14px 20px; transition: 0.3s; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .tablinks:hover { background-color: var(--color-primary); }
+        .tablinks.active { background-color: var(--color-primary); border-bottom: 3px solid var(--color-accent); margin-bottom: -1px; }
+        .tabcontent { display: none; padding: 30px 0; }
+
+        /* Estilos de Edición */
+        .field-editor-item { border: 1px dashed var(--color-secondary); border-radius: 6px; padding: 15px; margin-bottom: 10px; background-color: var(--color-white); }
+        .required-fixed-field { padding: 10px; background-color: var(--color-secondary); color: var(--color-white); border-radius: 4px; margin-bottom: 10px; }
+        
+        /* Estilos para la tabla */
+        #orders-table { width: 100%; border-collapse: collapse; }
+        #orders-table th, #orders-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
+        #orders-table th { background-color: var(--color-primary); color: var(--color-text); }
+        #orders-table tr:nth-child(even) { background-color: var(--color-bg); }
+        #orders-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
+
+        /* Login View */
+        #login-view { width: 350px; padding: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--color-white); border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); text-align: center; }
+        #login-error { color: var(--color-error); font-weight: bold; }
+        
+        /* Estilo para las firmas en el PDF */
+        .pdf-signatures {
+            margin-top: 60px; /* 1cm más abajo */
+            padding-top: 30px;
+            border-top: 1px dashed #B0C4DE;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .pdf-signatures span {
+            display: inline-block;
+            width: 45%; /* Ajuste para espacio entre firmas */
+        }
+        .pdf-signatures hr {
+            border: none;
+            border-top: 1px solid #36454F;
+            margin: 5px 0 0 0;
+        }
+        
+        /* Estilos específicos para el encabezado en páginas > 1 del PDF */
+        .pdf-header-secondary {
+            position: fixed; /* Fijo en la parte superior */
+            top: 10px; /* Posición ajustada para evitar margen */
+            right: 20px; /* Posición ajustada para el lado derecho */
+            font-size: 14px; /* Tamaño similar al de las secciones */
+            color: #555;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="login-view">
+        <h2>🔒 Iniciar Sesión</h2>
+        <input type="email" id="email" placeholder="Correo Electrónico" required><br>
+        <input type="password" id="password" placeholder="Contraseña" required><br>
+        <button onclick="login()">Acceder</button>
+        <p id="login-error"></p>
+    </div>
+
+    <div id="main-app" class="container" style="display: none;">
+        
+        <!-- Pestañas de Navegación -->
+        <div class="tab">
+            <!-- ID AÑADIDO: new-order-tab-button -->
+            <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
+            <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
+            <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
+            <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
+        </div>
+
+        <!-- Contenido de las Pestañas -->
+
+        <!-- Pestaña 1: Creación de Orden de Trabajo -->
+        <div id="new-order" class="tabcontent">
+            <h3>Nueva Orden de Trabajo</h3>
+            <form id="work-order-form"></form>
+            <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
+        </div>
+
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
+        <div id="view-orders" class="tabcontent">
+            <h3>Registro Histórico de Órdenes</h3>
+            <table id="orders-table">
+                <thead>
+                    <tr><th>Nro. OT</th><th>Título</th><th>Fecha Creación</th><th>Acciones</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
+        <div id="edit-form" class="tabcontent">
+            <h3>Edición de Formulario</h3>
+            <div id="form-editor"></div>
+            <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
+        </div>
+    </div>
+
+    <script>
+        // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
+        
+        // ** CONFIGURACIÓN DE FIREBASE **
         const firebaseConfig = {
-            apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA",
-            authDomain: "ordenestrabajo-39eab.firebaseapp.com",
-            projectId: "ordenestrabajo-39eab",
-            storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
-            messagingSenderId: "561184772303",
-            appId: "1:561184772303:web:765f5859b4b3a332e827ba"
-        };
-        // --- FIN: REEMPLAZO DE CONFIGURACIÓN DEL USUARIO ---
-
-        // Inicializar Firebase y exponer las variables necesarias al ámbito global
-        window.app = initializeApp(firebaseConfig);
-        window.auth = getAuth(window.app);
-        window.db = getFirestore(window.app);
-
-        // Variables Globales de Firestore
-        window.ORDERS_COLLECTION = collection(window.db, "workOrders");
-        window.CONFIG_COLLECTION = collection(window.db, "config");
-        window.COUNTER_DOC = doc(window.db, "config", "otCounter");
-        window.CONFIG_DOC = doc(window.db, "config", "systemConfig"); 
-        window.serverTimestamp = serverTimestamp;
-
-        // Declaración de variables globales que serán inicializadas en la función initApp
-        window.otCounter = 0;
-        window.formStructure = []; 
-        window.workOrders = []; 
-        window.currentRole = null;
-        window.currentUserEmail = null;
-
-        // Roles y Permisos (LISTA DE CORREOS HARDCODEADA)
-        // ** FIX APLICADO AQUÍ: labortradingsg@gmail.com añadido al rol 'admin' **
-        const ROLE_MAP = {
-            'admin': ['admin@ejemplo.com', 'otroadmin@ejemplo.com', 'labortradingsg@gmail.com'], 
-            'normal': ['usuario1@ejemplo.com', 'usuario2@ejemplo.com'], 
-            'viewer': ['visor@ejemplo.com', 'otrovisor@ejemplo.com'] 
+          // *** CLAVE API ACTUALIZADA CON EL VALOR PROPORCIONADO POR EL USUARIO ***
+          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA", 
+          authDomain: "ordenestrabajo-39eab.firebaseapp.com",
+          projectId: "ordenestrabajo-39eab",
+          storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
+          messagingSenderId: "561184772303",
+          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
         };
         
-        // Estructura de Formulario por defecto (Si no existe en Firebase)
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        // Referencias a las "colecciones" de la base de datos
+        const ORDERS_COLLECTION = db.collection("workOrders");
+        const CONFIG_COLLECTION = db.collection("config"); 
+        
+        // Variables de estado
+        let formStructure = null; 
+        let workOrders = []; 
+        let otCounter = 1; 
+        let currentRole = null; 
+
+        // ----------------------------------------------------------------------------------
+        // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
+        // ----------------------------------------------------------------------------------
+
+        // Coloque aquí todos los correos electrónicos con acceso de administrador
+        const ADMIN_EMAILS = [
+            'labortradingsg@gmail.com', // El correo que usted configuró
+            '' // Otro administrador de ejemplo
+        ]; 
+
+        // Coloque aquí todos los correos electrónicos con acceso de solo visualización
+        const VIEWER_EMAILS = [
+            'visualizador1@empresa.com',
+            'visualizador2@empresa.com',
+            'solo.ver@tudominio.com' // Visualizador de ejemplo
+        ]; 
+
+        // ----------------------------------------------------------------------------------
+        // *** FIN CONFIGURACIÓN DE ROLES ***
+        // ----------------------------------------------------------------------------------
+        
+        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
+        const CONTRATISTAS_DATA = {
+            "Seleccione una Empresa": {
+                "Apellido y Nombre del Responsable": "",
+                "Rif": ""
+            },
+            " JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES  C.A": {
+                "Apellido y Nombre del Responsable": "JOHN RIVAS",
+                "Rif": "J-50507058-4"
+            },
+            "CHASSERAL  C.A": {
+                "Apellido y Nombre del Responsable": "YORKFRAN PERAZA",
+                "Rif": "J-29510646-7"
+            },
+            "CONSERVI AJ C.A": {
+                "Apellido y Nombre del Responsable": "ALFONZO BASTARDO",
+                "Rif": "J-29548400-3"
+            },
+            "CORPORACION ACEL  C.A": {
+                "Apellido y Nombre del Responsable": "DANIEL GONCALVES",
+                "Rif": "J-30860621-9"
+            },
+            "CORPORACIÓN TORRA NET 2022  C.A": {
+                "Apellido y Nombre del Responsable": "JESUS TORRADO",
+                "Rif": "J-50308479-0"
+            },
+            "DISTRIBUIDORA TODO EN REDES G.S.R  C.A": {
+                "Apellido y Nombre del Responsable": "GASTON BUIZA",
+                "Rif": "J-40424835-8"
+            },
+            "FIBRA INTEGRA  C.A": {
+                "Apellido y Nombre del Responsable": "MARIE ANTONIETTE DAHDAH",
+                "Rif": "J-50265450-0"
+            },
+            "G&D INTEGRAL RED 2023": {
+                "Apellido y Nombre del Responsable": "RAFAEL GOMEZ",
+                "Rif": "J-50298686-3"
+            },
+            "GLOBAL FIX C.A": {
+                "Apellido y Nombre del Responsable": "CECILIA CASTRO - JEAN PIERRE LAPARROUSAZ",
+                "Rif": "J-31189038-6"
+            },
+            "INT.TV  C.A": {
+                "Apellido y Nombre del Responsable": "RAFAEL BERNAEZ",
+                "Rif": "J-50301107-6"
+            },
+            "INVERSIONES ELECTROMTEC 2020  C.A": {
+                "Apellido y Nombre del Responsable": "IGOR REGALADO",
+                "Rif": "J-50082533-1"
+            },
+            "INVERSIONES PROYECTOS LG 721  C.A": {
+                "Apellido y Nombre del Responsable": "DOMENICO LOLLI",
+                "Rif": "J-29831930-5"
+            },
+            "INVERSIONES TELE MATIK 321 C.A": {
+                "Apellido y Nombre del Responsable": "EDICSON TORRES - KATIUSKA",
+                "Rif": "J-29867936-0"
+            },
+            "JR TECH SUPPORT  C.A": {
+                "Apellido y Nombre del Responsable": "YENSY MARTINEZ",
+                "Rif": "J-50032575-4"
+            },
+            "LG ALPHA SOLUCIONES  C.A": {
+                "Apellido y Nombre del Responsable": "GILBERTO BERNAEZ",
+                "Rif": "J-50319061-2"
+            },
+            "MULTI INVERSIONES LA LOVEREÑA C.A": {
+                "Apellido y Nombre del Responsable": "CARLOS TOLEDO",
+                "Rif": "J-40492572-4"
+            },
+            "MULTISERVICIOS DAYRA-TEC  C.A": {
+                "Apellido y Nombre del Responsable": "MARINES GOMEZ",
+                "Rif": "J-50331914-3"
+            },
+            "PHONE MARKET STAR C.A": {
+                "Apellido y Nombre del Responsable": "NELSON MORA",
+                "Rif": "J-30919375-9"
+            },
+            "PROMOCIONES Y MERCADEO J FRANCHI C.A": {
+                "Apellido y Nombre del Responsable": "JOSE FRANCHI",
+                "Rif": "J-31574714-6"
+            },
+            "ROM-AR SERVICIOS Y MANTENIMIENTO  C.A": {
+                "Apellido y Nombre del Responsable": "ELENA RUIZ",
+                "Rif": "J-31128189-4"
+            },
+            "SERVICIOS DE TECNOLOGIA E INNOVACION (SERVITECH)  C.A": {
+                "Apellido y Nombre del Responsable": "JHOAN CELIS",
+                "Rif": "J-50028078-5"
+            },
+            "SERVICIOS INTEGRALES RFCF  C.A": {
+                "Apellido y Nombre del Responsable": "CESAR",
+                "Rif": "J-40387720-3"
+            },
+            "SERVICIOS J&G SOLUTION  C.A": {
+                "Apellido y Nombre del Responsable": "JESUS BERNAEZ",
+                "Rif": "J-50201745-3"
+            },
+            "SERVICIOS R G C.A": {
+                "Apellido y Nombre del Responsable": "NELSON PORRA",
+                "Rif": "J-29624230-5"
+            },
+            "SERVICIOS TEALCA C.A": {
+                "Apellido y Nombre del Responsable": "FRANKLYN MENDOZA",
+                "Rif": "J-31521527-6"
+            },
+            "SERVINDRECO C.A": {
+                "Apellido y Nombre del Responsable": "OSCAR GUERRERO",
+                "Rif": "J-31347293-0"
+            },
+            "SUMINISTROS INDUSTRIALES JAMIG C.A": {
+                "Apellido y Nombre del Responsable": "MIGUEL PEREZ",
+                "Rif": "J-40990643-4"
+            },
+            "SYCO 73  C.A": {
+                "Apellido y Nombre del Responsable": "JUAN SIVIRA",
+                "Rif": "J-31762306-1"
+            },
+            "TELECOMUNICACIONES JD SISTEM  C.A": {
+                "Apellido y Nombre del Responsable": "FLAVIA GOMEZ",
+                "Rif": "J-50126527-5"
+            },
+            "TELEIBARRA CA&EC  C.A": {
+                "Apellido y Nombre del Responsable": "CARLOS IBARRA",
+                "Rif": "J-50481799-6"
+            },
+            "W&S TECNOMARKET C.A": {
+                "Apellido y Nombre del Responsable": "YERWILL SILVA",
+                "Rif": "J-30993225-0"
+            },
+            "WV SOLUCIONES TECNO-EMPRESARIALES  C.A": {
+                "Apellido y Nombre del Responsable": "WILLIAN VALERO",
+                "Rif": "J-40973178-2"
+            }
+        };
+
+        // Estructura inicial por defecto 
         const DEFAULT_FORM_STRUCTURE = [
-            {
-                id: "section_i",
-                title: "I. Información General",
-                fields: [
-                    { id: "ot_title", label: "Título del Formulario (*):", type: "text", required: true },
-                    { id: "ot_fecha", label: "Fecha Actual (*):", type: "date", required: true },
-                    { id: "ot_site", label: "Site/Ubicación:", type: "text", required: false },
-                ]
-            },
-            {
-                id: "section_ii",
-                title: "II. Contratista",
-                fields: [
-                    // El campo de Contratista se mantiene como texto simple para este ejemplo
-                    { id: "ot_empresa", label: "Empresa Contratista (*):", type: "text", required: true }, 
-                    { id: "ot_responsable", label: "Apellido y Nombre del Responsable (*):", type: "text", required: true },
-                    { id: "ot_rif", label: "Rif (*):", type: "text", required: true },
-                ]
-            },
-            {
-                id: "section_iii",
-                title: "III. Información del Trabajo/Obra",
-                fields: [
-                    { id: "ot_descripcion", label: "Descripción del Trabajo (*):", type: "textarea", required: true },
-                    { id: "ot_tipo", label: "Tipo de Trabajo:", type: "select", options: ["Obra Nueva", "Mantenimiento", "Corrección"], required: true },
-                    
-                    // --- CAMPOS MODIFICADOS POR SOLICITUD ---
-                    { id: "pago_vgt_cantv", label: "Pago x VGT CANTV a cargo de Inter (*):", type: "number", required: true },
-                    { id: "pago_vgt_edc", label: "Pago x VGT EDC a cargo de Inter (*):", type: "number", required: true },
-                    // --- FIN DE CAMPOS MODIFICADOS ---
-                    
-                    { id: "ot_observaciones", label: "Observaciones/Notas:", type: "textarea", required: false },
-                ]
-            }
+            { title: "I. Información General", fields: [
+                { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
+                { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
+                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
+                { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
+                { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
+            ]},
+            { title: "II. Información de la Contratista", fields: []},
+            { title: "III. Información del Trabajo/Obra", fields: []}
         ];
-
-        // --- [2. LÓGICA DE AUTENTICACIÓN Y ROLES] ---
-
-        function determineRole(email) {
-            if (ROLE_MAP.admin.includes(email)) return 'admin';
-            if (ROLE_MAP.normal.includes(email)) return 'normal';
-            if (ROLE_MAP.viewer.includes(email)) return 'viewer';
-            return null; // Usuario no autorizado
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const errorElement = document.getElementById('login-error');
-            errorElement.textContent = '';
-
-            try {
-                // Usando la función del SDK modular
-                await signInWithEmailAndPassword(window.auth, email, password);
-            } catch (error) {
-                console.error("Error de autenticación:", error.code, error.message);
-                errorElement.textContent = `Error de inicio de sesión: ${error.message}`;
-            }
-        }
-
-        function handleLogout() {
-            signOut(window.auth);
-            // Limpiar variables de estado al cerrar sesión
-            window.formStructure = [];
-            window.workOrders = [];
-            window.currentRole = null;
-        }
-
-        // --- [3. LÓGICA DE FIREBASE: Carga de Datos y Migración] ---
-
-        /**
-         * Aplica la migración de campos VGT: renombra el campo original y lo duplica.
-         * @param {Array} structure - La estructura del formulario actual.
-         * @returns {boolean} - true si la estructura fue modificada.
-         */
-        function applyVGTMigration(structure) {
-            const originalLabel = "Pago x VGT a cargo de Inter (*):";
-            const newLabelCANTV = "Pago x VGT CANTV a cargo de Inter (*):";
-            const newLabelEDC = "Pago x VGT EDC a cargo de Inter (*):";
-            let originalFieldIndex = -1;
-            let originalSectionIndex = -1;
-            let structureModified = false;
-
-            // 1. Buscar el campo original por su etiqueta
-            for (let sIndex = 0; sIndex < structure.length; sIndex++) {
-                const section = structure[sIndex];
-                originalFieldIndex = section.fields.findIndex(f => f.label === originalLabel);
-                if (originalFieldIndex !== -1) {
-                    originalSectionIndex = sIndex;
-                    break;
-                }
-            }
-
-            if (originalFieldIndex !== -1) {
-                // 2. Renombrar el campo original a CANTV
-                const originalField = structure[originalSectionIndex].fields[originalFieldIndex];
-                originalField.label = newLabelCANTV;
-                originalField.id = "pago_vgt_cantv"; 
-
-                // 3. Crear y duplicar el campo (EDC)
-                const edcField = {
-                    ...originalField, // Copiar todas las propiedades del campo original
-                    label: newLabelEDC,
-                    id: "pago_vgt_edc" 
-                };
-                
-                // 4. Insertar el nuevo campo (EDC) inmediatamente después del original (CANTV)
-                structure[originalSectionIndex].fields.splice(originalFieldIndex + 1, 0, edcField);
-                structureModified = true;
-                
-                console.log("Migración de campos VGT aplicada: Renombrado y Duplicado.");
-            }
-            
-            return structureModified;
-        }
-
+        
+        // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
 
         async function loadInitialData() {
             try {
-                // Cargar Contador OT
-                const counterSnapshot = await getDoc(window.COUNTER_DOC);
-                if (counterSnapshot.exists()) {
-                    window.otCounter = counterSnapshot.data().currentValue || 0;
-                }
-                document.getElementById('ot-counter-display').textContent = `Próximo Nro. OT: ${window.otCounter + 1}`;
-                
-                // Cargar Estructura del Formulario
-                const configSnapshot = await getDoc(window.CONFIG_DOC);
-                if (configSnapshot.exists()) {
-                    const data = configSnapshot.data();
-                    window.formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
+                // Cargar Estructura del Formulario y Contador
+                const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
+                if (configDoc.exists) {
+                    const data = configDoc.data();
+                    formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     
-                    // APLICAR LA MIGRACIÓN DE CAMPOS VGT
-                    const wasMigrated = applyVGTMigration(window.formStructure);
-                    if (wasMigrated) {
-                        // Si hubo cambios, los guardamos de vuelta para que persistan en Firestore
-                        await saveFormStructure(true); // Guarda de forma silenciosa
+                    // Lógica de Migración: si faltan campos fijos (como el nuevo de usuario), los agregamos.
+                    const infoGeneralFields = formStructure[0].fields;
+                    const hasUserField = infoGeneralFields.some(f => f.id === 'user_auto_fill');
+                    if (!hasUserField) {
+                         // Insertar el campo de usuario en la posición correcta (antes de la fecha)
+                         const dateIndex = infoGeneralFields.findIndex(f => f.id === 'current_date');
+                         if (dateIndex !== -1) {
+                             infoGeneralFields.splice(dateIndex, 0, DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         } else {
+                             // Si no encuentra la fecha, lo pone al final de la sección I
+                             infoGeneralFields.push(DEFAULT_FORM_STRUCTURE[0].fields[2]);
+                         }
                     }
-                    
+
+                    // Lógica de Migración de títulos (siempre los mantenemos con el romano)
+                    if (formStructure.length >= 3) {
+                         if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
+                         if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
+                         if (formStructure[2].title === "Información del Trabajo/Obra" || formStructure[2].title === "III. Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
+                    }
+
+                    otCounter = data.otCounter || 1;
                 } else {
-                    window.formStructure = DEFAULT_FORM_STRUCTURE;
-                    // Si no existe, lo creamos con la estructura por defecto
+                    // Primera vez: usa el valor por defecto y guárdalo
+                    formStructure = DEFAULT_FORM_STRUCTURE;
                     await saveFormStructure(true); 
                 }
-
-                // Cargar Órdenes de Trabajo (solo 100 más recientes)
-                const q = query(window.ORDERS_COLLECTION, orderBy('Orden de Trabajo', 'desc'), limit(100));
-                const ordersSnapshot = await getDocs(q); // Usar getDocs para queries
-                window.workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
-                // Renderizar la UI después de cargar todos los datos
-                renderWorkOrderForm();
-                renderWorkOrdersTable(window.workOrders);
-                if (window.currentRole === 'admin') {
-                    renderFormEditor();
-                }
+                // Cargar Órdenes de Trabajo
+                const ordersSnapshot = await ORDERS_COLLECTION.get();
+                workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Asegurar que el contador esté correcto al inicio
+                recalculateOtCounter();
 
             } catch (e) {
-                console.error("Error al cargar datos iniciales:", e);
-                // Si el error es de clave API, se maneja en el listener de auth
-                if (e.message.includes("API key")) {
-                    document.getElementById('login-error').textContent = `Error de configuración: ${e.message}`;
+                console.error("Error cargando datos iniciales: ", e);
+                alert("Error al conectar con la base de datos. Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
+            }
+        }
+        
+        async function saveFormStructure(initial = false) {
+            try {
+                await CONFIG_COLLECTION.doc("systemConfig").set({
+                    formStructure: formStructure,
+                    otCounter: otCounter
+                }, { merge: true });
+
+                if (!initial) {
+                     alert('🎉 Estructura del formulario y contador guardados exitosamente en la nube.');
+                     renderWorkOrderForm();
+                }
+            } catch (e) {
+                console.error("Error al guardar la estructura:", e);
+                alert("Error al guardar la estructura en Firebase.");
+            }
+        }
+        
+        // MODIFICADA: Lógica de Roles
+        function getRoleFromEmail(email) {
+            if (ADMIN_EMAILS.includes(email)) {
+                return 'admin';
+            } 
+            else if (VIEWER_EMAILS.includes(email)) { 
+                return 'viewer'; 
+            } 
+            else {
+                return 'normal'; 
+            }
+        }
+
+        // SIN CAMBIOS MAYORES
+        async function login() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            const errorElement = document.getElementById('login-error');
+            errorElement.textContent = '';
+            
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+                const user = userCredential.user;
+                
+                let role = getRoleFromEmail(user.email); 
+                
+                currentRole = role;
+                
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                initializeApp(role);
+                
+            } catch (error) {
+                console.error("Error de autenticación:", error.code, error.message);
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorElement.textContent = 'El formato del correo es inválido.';
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    errorElement.textContent = 'ERROR DE CONFIGURACIÓN: La Clave API de Firebase no es válida. Por favor, verifique la configuración de Firebase en el código.';
                 } else {
-                    console.error("Error al cargar datos iniciales:", e);
+                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
                 }
             }
         }
 
-        // Función de inicialización principal
-        function initApp() {
-            document.getElementById('login-form').addEventListener('submit', handleLogin);
-            document.getElementById('logout-button').addEventListener('click', handleLogout);
-            document.getElementById('work-order-form').addEventListener('submit', handleGenerateOT);
-            
-            // Listener de estado de autenticación - AHORA DENTRO DEL BLOQUE MODULE
-            onAuthStateChanged(window.auth, (user) => {
-                if (user) {
-                    window.currentUserEmail = user.email;
-                    window.currentRole = determineRole(window.currentUserEmail);
+        // SIN CAMBIOS
+        function logout() {
+            firebase.auth().signOut().then(() => {
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                alert('Sesión cerrada correctamente.');
+            }).catch((error) => {
+                console.error("Error al cerrar sesión:", error);
+                alert('Error al cerrar sesión.');
+            });
+        }
 
-                    if (window.currentRole) {
-                        document.getElementById('login-container').classList.add('hidden');
-                        document.getElementById('app').classList.remove('hidden');
-                        document.getElementById('welcome-message').textContent = `¡Bienvenido, ${window.currentUserEmail}!`;
-                        document.getElementById('role-display').textContent = `Rol: ${window.currentRole.toUpperCase()}`;
-                        
-                        // Control de Permisos de Pestañas
-                        document.getElementById('admin-tab').classList.add('hidden');
-                        if (window.currentRole === 'admin') {
-                            document.getElementById('admin-tab').classList.remove('hidden');
-                        }
-                        
-                        loadInitialData();
-                        window.openTab(null, 'new-order'); 
-                    } else {
-                        // Usar una función personalizada en lugar de alert()
-                        displayMessage("Su correo electrónico no está autorizado para acceder al sistema.", 'error');
-                        signOut(window.auth);
-                    }
+        // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
+        async function initializeApp(role) {
+            const isCreator = (role === 'admin' || role === 'normal');
+
+            document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+            document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
+            
+            await loadInitialData(); 
+            
+            if (role === 'admin') {
+                renderFormEditor();
+                openTab(null, 'edit-form');
+            } else if (role === 'normal') {
+                openTab(null, 'new-order');
+            } else if (role === 'viewer') {
+                openTab(null, 'view-orders'); 
+            }
+            
+            renderWorkOrderForm();
+            renderOrdersTable();
+        }
+
+        // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
+        window.onload = function() {
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    let role = getRoleFromEmail(user.email); 
+                    currentRole = role;
+                    
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    initializeApp(role);
                 } else {
-                    document.getElementById('login-container').classList.remove('hidden');
-                    document.getElementById('app').classList.add('hidden');
+                    currentRole = null;
+                    document.getElementById('main-app').style.display = 'none';
+                    document.getElementById('login-view').style.display = 'block';
                 }
             });
         }
         
-        // Exponer la función initApp para que window.onload pueda llamarla
-        window.initApp = initApp; 
-        
-        // --- Otras Funciones necesarias ---
-
-        function displayMessage(message, type) {
-            // Placeholder para una futura caja de mensajes modal
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            alert(message); // Temporalmente usa alert() para notificaciones, aunque se recomienda un modal personalizado.
-        }
-
-        // Exponer funciones necesarias al scope global para que el HTML pueda llamarlas
-        window.openTab = (evt, tabName) => {
+        function openTab(evt, tabName) {
             let i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tabcontent");
             for (i = 0; i < tabcontent.length; i++) {
@@ -283,235 +637,767 @@
                 tablinks[i].className = tablinks[i].className.replace(" active", "");
             }
             document.getElementById(tabName).style.display = "block";
-            if (evt) {
-                evt.currentTarget.className += " active";
-            } else {
-                document.getElementById('defaultOpen').className += " active";
-            }
-        };
+            if (evt) evt.currentTarget.className += " active";
 
-        window.renderWorkOrderForm = () => {
-            const container = document.getElementById('dynamic-form-container');
-            container.innerHTML = ''; 
+            if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
+            else if (tabName === 'view-orders') renderOrdersTable();
+            else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
+        }
+        
+        // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
 
-            window.formStructure.forEach(section => {
+        function renderFormEditor() {
+            const editorDiv = document.getElementById('form-editor');
+            editorDiv.innerHTML = '';
+
+            formStructure.forEach((section, secIndex) => {
                 const sectionDiv = document.createElement('div');
                 sectionDiv.className = 'form-section';
-                sectionDiv.innerHTML = `<h3>${section.title}</h3>`;
+                sectionDiv.innerHTML = `
+                    <h4>Sección ${secIndex + 1}: <input type="text" value="${section.title}" oninput="updateSectionTitle(${secIndex}, this.value)" style="width: 70%; display: inline;"></h4>
+                    <button onclick="addField(${secIndex}, 'text')">➕ Agregar Campo de Texto</button>
+                    <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
+                    <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
+                    <hr>
+                    <div id="fields-container-${secIndex}"></div>
+                `;
+                editorDiv.appendChild(sectionDiv);
 
-                section.fields.forEach(field => {
-                    const fieldId = field.id;
-                    const requiredAttribute = field.required ? 'required' : '';
-                    let inputHTML = '';
-                    
-                    switch (field.type) {
-                        case 'text':
-                        case 'date':
-                        case 'number':
-                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute}>`;
-                            break;
-                        case 'textarea':
-                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} rows="4"></textarea>`;
-                            break;
-                        case 'select':
-                            const optionsHTML = (field.options || []).map(option => 
-                                `<option value="${option}">${option}</option>`
-                            ).join('');
-                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute}><option value="">Seleccione...</option>${optionsHTML}</select>`;
-                            break;
-                        default:
-                            inputHTML = `<input type="text" id="${fieldId}" name="${fieldId}" ${requiredAttribute}>`;
-                            break;
+                const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
+                section.fields.forEach((field, fieldIndex) => {
+                    // user-auto-fill al listado de campos fijos
+                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') {
+                        fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
+                        return;
                     }
 
                     const fieldDiv = document.createElement('div');
-                    fieldDiv.className = 'form-field';
+                    fieldDiv.className = 'field-editor-item';
                     fieldDiv.innerHTML = `
-                        <label for="${fieldId}">${field.label}</label>
-                        ${inputHTML}
+                        <label>Etiqueta:</label>
+                        <input type="text" value="${field.label}" oninput="updateFieldProperty(${secIndex}, ${fieldIndex}, 'label', this.value)">
+                        <label>Tipo:</label>
+                        <select onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'type', this.value)">
+                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>Texto (Corto)</option>
+                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
+                            <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto (Largo)</option>
+                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable (Simple)</option>
+                            <option value="autofill-select" ${field.type === 'autofill-select' ? 'selected' : ''}>Lista (Autollenado Contratista) 📝</option>
+                            <option value="date-input" ${field.type === 'date-input' ? 'selected' : ''}>Fecha (Calendario) 📅</option>
+                        </select>
+                        <label>Clasificación:</label>
+                        <input type="checkbox" id="req-${secIndex}-${fieldIndex}" ${field.required ? 'checked' : ''} onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'required', this.checked)"> 
+                        <label for="req-${secIndex}-${fieldIndex}" style="display: inline-block; font-weight: normal;">Obligatorio</label>
+                        
+                        <div id="select-options-${secIndex}-${fieldIndex}" style="margin-top: 10px; ${field.type !== 'select' && field.type !== 'autofill-select' ? 'display: none;' : ''}">
+                            <strong>Opciones de Lista (solo visible si es 'Select' o 'Autofill-Select'). </strong>
+                            ${field.type === 'autofill-select' ? 
+                                '<p style="color: var(--color-error);">⚠️ **Autollenado:** Las opciones se toman de `CONTRATISTAS_DATA` y anulan esta lista.</p>' : ''
+                            }
+                            <input type="text" value="${(field.options || []).join(', ')}" oninput="updateSelectOptions(${secIndex}, ${fieldIndex}, this.value)">
+                        </div>
+                        <button onclick="removeField(${secIndex}, ${fieldIndex})" style="background-color: var(--color-error); color: var(--color-white);">🗑️ Eliminar Campo</button>
                     `;
-                    sectionDiv.appendChild(fieldDiv);
+                    fieldsContainer.appendChild(fieldDiv);
                 });
-
-                container.appendChild(sectionDiv);
             });
-            
-            // Establecer la fecha actual por defecto en el campo de fecha si existe
-            const dateField = document.getElementById('ot_fecha');
-            if (dateField) {
-                dateField.valueAsDate = new Date();
-            }
-        };
+        }
+        
+        function updateSectionTitle(secIndex, newTitle) { formStructure[secIndex].title = newTitle; }
 
-        window.handleGenerateOT = async (e) => {
-            e.preventDefault();
-            if (window.currentRole !== 'admin' && window.currentRole !== 'normal') {
-                displayMessage("Su rol no tiene permisos para crear Órdenes de Trabajo.", 'error');
+        function updateFieldProperty(secIndex, fieldIndex, prop, value) {
+            formStructure[secIndex].fields[fieldIndex][prop] = value;
+            if (prop === 'type') {
+                if ((value === 'select' || value === 'autofill-select') && !formStructure[secIndex].fields[fieldIndex].options) {
+                    formStructure[secIndex].fields[fieldIndex].options = ['Opción A', 'Opción B'];
+                }
+                renderFormEditor();
+            }
+        }
+
+        function updateSelectOptions(secIndex, fieldIndex, value) {
+            formStructure[secIndex].fields[fieldIndex].options = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        function addField(secIndex, type) {
+            const newField = {
+                id: `dynamic_field_${Date.now()}`,
+                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : 'Texto')}`,
+                type: type,
+                required: false
+            };
+            if (type === 'select' || type === 'autofill-select') newField.options = ['Opción A', 'Opción B'];
+            formStructure[secIndex].fields.push(newField);
+            renderFormEditor();
+        }
+
+        function removeField(secIndex, fieldIndex) {
+            // user-auto-fill al listado de campos fijos
+            const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
+                            formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
+                            formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
+                            formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill';
+            
+            // La primera sección tiene los 4 campos fijos iniciales
+            if (secIndex === 0 && isFixed) {
+                alert("🚫 No se pueden eliminar los campos fijos y obligatorios de la primera sección.");
+                return;
+            }
+            if (confirm('¿Estás seguro de que quieres eliminar este campo?')) {
+                formStructure[secIndex].fields.splice(fieldIndex, 1);
+                renderFormEditor();
+            }
+        }
+
+
+        // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
+        
+        // NUEVA FUNCIÓN: Formatea fecha YYYY-MM-DD o DD/MM/YYYY a DD/MM/YYYY
+        function formatDateToDDMMYYYY(dateString) {
+            if (!dateString) return 'N/A';
+            
+            // Si la fecha ya está en formato DD/MM/YYYY, se asume que es la correcta (campos fijos)
+            if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return dateString;
+            }
+
+            // Para fechas YYYY-MM-DD (inputs de tipo date)
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                const [year, month, day] = parts;
+                return `${day}/${month}/${year}`;
+            }
+
+            // Si no coincide con ninguno, devuelve el original
+            return dateString;
+        }
+
+        /**
+         * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
+         * @returns {string} Fecha en formato DD/MM/AAAA.
+         */
+        function getCurrentCaracasDate() {
+            const now = new Date();
+            // Usamos las opciones de formato y la zona horaria de Caracas para forzar la fecha GMT-4.
+            return now.toLocaleDateString('es-ES', { 
+                timeZone: 'America/Caracas',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+        
+        /**
+         * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
+         */
+        function autofillContratistaData(selectElement) {
+            const selectedCompanyName = selectElement.value;
+            const data = CONTRATISTAS_DATA[selectedCompanyName];
+            
+            if (!data) {
+                document.getElementById('Apellido y Nombre del Responsable').value = '';
+                document.getElementById('Rif').value = '';
                 return;
             }
 
-            const workOrderData = {
-                'Orden de Trabajo': window.otCounter + 1,
-                'Autor': window.currentUserEmail,
-                'Timestamp': window.serverTimestamp() // Usando el timestamp del servidor
-            };
+            const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
+            const rifField = document.getElementById('Rif');
 
-            // Recoger datos del formulario dinámico
-            let isValid = true;
-            window.formStructure.forEach(section => {
+            if (responsibleField && data["Apellido y Nombre del Responsable"] !== undefined) {
+                responsibleField.value = data["Apellido y Nombre del Responsable"];
+            }
+            if (rifField && data["Rif"] !== undefined) {
+                rifField.value = data["Rif"];
+            }
+        }
+
+        function calculateNewTotal(prefix) {
+            const precioUnitario = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')) || 0;
+            const puntos = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')) || 0;
+            const total = precioUnitario * puntos;
+            
+            document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2);
+            document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
+        }
+
+
+        function toggleConditionalSection(type) {
+            const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
+            const ispSection = document.getElementById('conditional_isp_section');
+            const nodeAccessButton = document.getElementById('check_node_acceso');
+            const ispButton = document.getElementById('check_isp');
+
+            // 1. Limpiar y resetear ambas secciones
+            nodeAccessSection.style.display = 'none';
+            ispSection.style.display = 'none';
+            nodeAccessButton.classList.remove('active');
+            ispButton.classList.remove('active');
+            
+            // 2. Resetear inputs y selecciones
+            
+            const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'descripcion', 'abono_mensual'];
+            const selectsToReset = ['pago_por_realizado'];
+
+            ['node_acceso', 'isp'].forEach(prefix => {
+                fieldsToReset.forEach(field => {
+                    const el = document.getElementById(`${prefix}_${field}`);
+                    if (el) el.value = '';
+                });
+                selectsToReset.forEach(field => {
+                    const el = document.getElementById(`${prefix}_${field}`);
+                    if (el) el.value = 'Inter'; // Valor por defecto
+                });
+                
+                document.getElementById(`${prefix}_total_display`).textContent = '0.00';
+                document.getElementById(`${prefix}_total_hidden`).value = '0.00';
+            });
+
+
+            // 3. Mostrar la sección seleccionada
+            if (type === 'node_acceso') {
+                nodeAccessSection.style.display = 'block';
+                nodeAccessButton.classList.add('active');
+            } else if (type === 'isp') {
+                ispSection.style.display = 'block';
+                ispButton.classList.add('active');
+            }
+        }
+
+
+        function renderWorkOrderForm() {
+            const formElement = document.getElementById('work-order-form');
+            formElement.innerHTML = '';
+            const todayCaracas = getCurrentCaracasDate(); 
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
+
+            if (!formStructure) {
+                 formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
+                 return;
+            }
+            
+            // Renderizar secciones dinámicas
+            formStructure.forEach(section => {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'form-section';
+                sectionDiv.innerHTML = `<h4>${section.title}</h4>`;
+
                 section.fields.forEach(field => {
-                    const input = document.getElementById(field.id);
-                    if (input) {
-                        workOrderData[field.label] = input.value;
-                        if (field.required && !input.value) {
-                            isValid = false;
+                    const requiredStar = field.required ? '<span style="color: var(--color-error); margin-left: 5px;">*</span>' : '';
+                    let inputHTML = '';
+                    let value = '';
+                    let isDisabled = '';
+                    let onChangeEvent = '';
+                    let isAutofillField = false;
+
+                    if (section.title.includes('II. Información de la Contratista')) {
+                        const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
+                        if (autofillKeys.includes(field.label)) {
+                            isDisabled = 'disabled';
+                            isAutofillField = true;
+                        } else if (field.type === 'autofill-select') {
+                            onChangeEvent = `onchange="autofillContratistaData(this)"`;
                         }
+                    }
+
+                    const fieldId = isAutofillField ? field.label : field.id; 
+                    
+                    const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
+                    const requiredAttribute = field.required && !isFixedField ? 'required' : '';
+
+
+                    switch (field.type) {
+                        case 'static':
+                            value = field.value;
+                            inputHTML = `<input type="text" value="${value}" disabled>`;
+                            break;
+                        case 'ot_counter':
+                            value = otCounter;
+                            inputHTML = `<input type="text" value="${value}" disabled>`;
+                            break;
+                        // TIPO DE CAMPO: user-auto-fill
+                        case 'user-auto-fill':
+                            value = currentUserEmail;
+                            inputHTML = `<input type="text" value="${value}" disabled>`;
+                            break;
+                        case 'date-auto':
+                            value = todayCaracas;
+                            inputHTML = `<input type="text" value="${value}" disabled>`; 
+                            break;
+                        case 'date-input':
+                            inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                            break;
+                        case 'text':
+                        case 'number':
+                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                            break;
+                        case 'textarea':
+                            inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}></textarea>`;
+                            break;
+                        case 'select':
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
+                                ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            </select>`;
+                            break;
+                        case 'autofill-select': 
+                            const optionsHTML = Object.keys(CONTRATISTAS_DATA).map(key => `<option value="${key}">${key}</option>`).join('');
+                            inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
+                                ${optionsHTML}
+                            </select>`;
+                            break;
+                    }
+
+                    sectionDiv.innerHTML += `<p><label for="${fieldId}">${field.label}${requiredStar}:</label>${inputHTML}</p>`;
+                });
+                formElement.appendChild(sectionDiv);
+            });
+            
+            // AÑADIR BOTONES DE CHECK CONDICIONAL AL FINAL
+            formElement.innerHTML += `
+                <h4>Tipo de Construcción (Selección Única)</h4>
+                <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
+                    La Construcción es de un Nodo de Acceso
+                </button>
+                <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
+                    La Construcción es de un ISP
+                </button>
+                <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">
+                    ❌ Eliminar / Desmarcar Selección
+                </button>
+            `;
+            
+            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN NODO DE ACCESO ---
+            formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Condicionales: La Construcción es de Nodo de Acceso');
+
+            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
+            formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
+            
+            // Inicializar las secciones ocultas
+            toggleConditionalSection(null);
+            
+            // Inicializar autollenado con el valor por defecto
+            const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
+            autofillSelects.forEach(select => autofillContratistaData(select));
+        }
+
+        function renderConditionalSection(prefix, title) {
+            const onChangeFunc = `calculateNewTotal('${prefix}')`;
+            
+            // NOTA: Se eliminó el campo ${prefix}_pago_vgt_inter. 
+            // El campo de cálculo ahora usa el nombre "Pago x VGT a cargo de Inter (*):"
+            const totalDisplayLabel = "Pago x VGT a cargo de Inter (*):"; 
+
+            return `
+                <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
+                    <h4>${title}</h4>
+                    
+                    <p><label for="${prefix}_costo_proyectado">Costo Proyectado de la Obra (*):</label>
+                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado" required></p>
+                    
+                    <p><label for="${prefix}_pago_por_realizado">Pago realizado por (*):</label>
+                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado" required>
+                            <option value="Inter">Inter</option>
+                            <option value="Cliente">Cliente</option>
+                        </select></p>
+                        
+                    
+                    <hr>
+                    
+                    <!-- CAMPO DE CÁLCULO RENOMBRADO -->
+                    <div class="calculation-group">
+                        <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span class="formula-symbol">X</span>
+                        
+                        <label for="${prefix}_puntos">Puntos (*):</label>
+                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span class="formula-symbol">=</span>
+                        
+                        <div class="calculation-total-section">
+                            <label style="flex-basis: auto;">${totalDisplayLabel}</label>
+                            <div id="${prefix}_total_display" class="total-display">0.00</div>
+                            <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
+                        </div>
+                    </div>
+                    
+                    <hr>
+
+                    <p><label for="${prefix}_descripcion">Descripción (*):</label>
+                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required></textarea></p>
+                    
+                    <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
+                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
+                        
+                </div>
+            `;
+        }
+
+        // SIN CAMBIOS
+        function sanitizeInput(str) {
+            if (typeof str !== 'string' || !str) return str;
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
+
+        async function generateWorkOrder() {
+            const form = document.getElementById('work-order-form');
+            const selectedType = document.querySelector('.conditional-check.active');
+            let firstInvalidField = null;
+
+            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
+            for (const section of formStructure) {
+                for (const field of section.fields) {
+                    // user-auto-fill al listado de campos fijos
+                    const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
+                    
+                    if (!field.required || isFixed) continue;
+
+                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                ? field.label 
+                                : field.id;
+                    
+                    const inputElement = document.getElementById(fieldId);
+
+                    if (inputElement && !inputElement.disabled && !inputElement.checkValidity()) {
+                        firstInvalidField = inputElement;
+                        break; 
+                    }
+                }
+                if (firstInvalidField) break; 
+            }
+
+            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
+            if (!firstInvalidField && selectedType) {
+                const prefix = selectedType.id.replace('check_', '');
+                const camposCondicionales = [
+                    document.getElementById(`${prefix}_costo_proyectado`),
+                    document.getElementById(`${prefix}_pago_por_realizado`),
+                    document.getElementById(`${prefix}_precio_unitario`),
+                    document.getElementById(`${prefix}_puntos`),
+                    document.getElementById(`${prefix}_descripcion`),
+                    document.getElementById(`${prefix}_abono_mensual`)
+                ];
+
+                for (const campo of camposCondicionales) {
+                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
+                        if (!campo.value.trim()) {
+                            firstInvalidField = campo;
+                            break;
+                        }
+                    } 
+                    else if (campo.type === 'number') {
+                        const numericValue = parseFloat(campo.value.replace(',', '.'));
+                        if (isNaN(numericValue) || numericValue < 0) {
+                            firstInvalidField = campo;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 3. MANEJO DEL ERROR
+            if (firstInvalidField) {
+                alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
+                
+                firstInvalidField.reportValidity();
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidField.focus();
+                return;
+            }
+
+            const formData = new FormData(form);
+            const orderData = {};
+            
+            // Obtener datos fijos
+            const caracasDate = getCurrentCaracasDate(); 
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
+
+            // 4. Recopilar datos estáticos y dinámicos del formulario principal
+            formStructure.forEach(section => {
+                section.fields.forEach(field => {
+                    let value;
+                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                ? field.label 
+                                : field.id;
+
+                    if (field.type === 'ot_counter') value = otCounter.toString();
+                    // TIPO DE CAMPO: user-auto-fill
+                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
+                    else if (field.type === 'date-auto') value = caracasDate;
+                    else if (field.type === 'static') value = field.value;
+                    else {
+                        const inputElement = document.getElementById(fieldId);
+                        value = inputElement ? inputElement.value : formData.get(fieldId);
+                    }
+                    
+                    // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
+                    if (field.type === 'date-input' && value) {
+                        orderData[field.label] = formatDateToDDMMYYYY(value);
+                    } else {
+                        orderData[field.label] = sanitizeInput(value) || 'N/A';
                     }
                 });
             });
+            
+            // 5. Recopilar datos de la sección condicional seleccionada 
+            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
-            if (!isValid) {
-                displayMessage("Por favor, complete todos los campos obligatorios (*).", 'error');
-                return;
+            if (selectedType) {
+                const prefix = selectedType.id.replace('check_', '');
+                
+                calculateNewTotal(prefix); 
+
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value);
+                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
+                
+                // RENOMBRADO EN EL GUARDADO (Utiliza el nombre del total calculado)
+                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
+
+                orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
+                orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); 
+                orderData[`${prefix} | Total (Precio Unitario x Puntos) - BORRAR`] = formData.get(`${prefix}_total_hidden`); // Se guarda temporalmente para referencia
+                
+                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value);
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value);
             }
 
-            // Confirmación antes de guardar
-            if (!confirm(`¿Confirma la generación de la OT Nro. ${workOrderData['Orden de Trabajo']}?`)) {
-                return;
-            }
 
+            // 6. **GUARDAR EN FIREBASE**
             try {
-                // 1. Guardar la nueva OT en Firestore
-                const newOrderRef = await addDoc(window.ORDERS_COLLECTION, workOrderData);
+                const docRef = await ORDERS_COLLECTION.add(orderData); 
+                
+                // 7. Actualizar array local y contador
+                orderData.id = docRef.id; 
+                workOrders.push(orderData);
+                otCounter++;
+                
+                // 8. Guardar la nueva estructura/contador
+                await saveFormStructure(true); 
 
-                // 2. Incrementar el contador de OT (usando una transacción para seguridad)
-                await runTransaction(window.db, async (transaction) => {
-                    const counterDoc = await transaction.get(window.COUNTER_DOC);
-                    const newCounter = (counterDoc.exists() ? counterDoc.data().currentValue : 0) + 1;
-                    transaction.set(window.COUNTER_DOC, { currentValue: newCounter });
-                });
-                
-                // Actualizar estado local
-                window.otCounter = window.otCounter + 1;
-                document.getElementById('ot-counter-display').textContent = `Próximo Nro. OT: ${window.otCounter + 1}`;
-                
-                // Opcional: Agregar la nueva orden al historial local para evitar recarga completa
-                window.workOrders.unshift({ id: newOrderRef.id, ...workOrderData });
-                renderWorkOrdersTable(window.workOrders);
-                
-                displayMessage(`Orden de Trabajo Nro. ${workOrderData['Orden de Trabajo']} generada y guardada exitosamente.`, 'success');
-                
-                // 3. Generar y Descargar PDF
-                await printWorkOrder(workOrderData);
+                // 9. Generar PDF
+                generatePDF(orderData);
 
-                // 4. Resetear formulario
-                document.getElementById('work-order-form').reset();
-                window.renderWorkOrderForm(); 
-
+                // 10. Reiniciar UI
+                form.reset();
+                renderWorkOrderForm(); 
+                renderOrdersTable(); 
+                
             } catch (e) {
-                console.error("Error al guardar la Orden de Trabajo:", e);
-                displayMessage("Error al guardar la Orden de Trabajo: " + e.message, 'error');
+                console.error("Error al crear la orden:", e);
+                alert("Error al guardar la orden de trabajo en Firebase. Verifique sus reglas de seguridad.");
             }
-        };
+        }
 
-        window.downloadOrder = async (docId) => {
-            try {
-                const docSnap = await getDoc(doc(window.ORDERS_COLLECTION, docId));
-                if (docSnap.exists()) {
-                    await printWorkOrder(docSnap.data());
-                } else {
-                    displayMessage("Documento no encontrado.", 'error');
-                }
-            } catch (e) {
-                console.error("Error al descargar la OT:", e);
-                displayMessage("Error al descargar la OT.", 'error');
-            }
-        };
+        // *** 6. GENERACIÓN DE PDF Y VISUALIZACIÓN DE ÓRDENES ***
 
-        window.printWorkOrder = async (workOrderData) => {
-            const pdfContainer = document.getElementById('pdf-content-container');
-            pdfContainer.innerHTML = ''; 
-
-            let htmlContent = `
-                <div class="pdf-content">
-                    <h1>ORDEN DE TRABAJO - Nro. ${workOrderData['Orden de Trabajo']}</h1>
-                    <p style="text-align: center; font-style: italic;">Generado por: ${workOrderData['Autor']}</p>
+        function generatePDF(data) {
+            const otNumber = data['Orden de Trabajo'];
+            const creationDate = data['Fecha Actual'] || 'N/A';
+            const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
+            
+            const secondaryHeader = `Orden de Trabajo Nro. ${otNumber}`;
+            
+            // Objeto de datos que contiene solo las claves del formulario dinámico
+            const dynamicFormLabels = formStructure.flatMap(section => section.fields.map(field => field.label));
+            
+            let formContentHTML = `
+                <div style="font-family: sans-serif; padding: 20px; color: #36454F;">
+                    <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px;">${data['Título del Formulario']} Nro. ${otNumber}</h1>
             `;
             
-            // 1. Recorrer la estructura del formulario para generar el PDF
-            window.formStructure.forEach(section => {
-                htmlContent += `<h2>${section.title}</h2><div class="pdf-grid">`;
+            // Campos de la cabecera (Fecha de Creación)
+             formContentHTML += `
+                 <div style="text-align: right; margin-top: -10px; margin-bottom: 20px; font-weight: bold; color: #555;">
+                    Fecha de Emisión: ${data['Fecha Actual']}
+                 </div>
+             `;
+
+
+            // Contenido del Formulario por Secciones (Dinámicas)
+            formStructure.forEach((section, secIndex) => {
                 
+                const breakAvoidStyle = (secIndex >= 2) ? 'style="page-break-inside: avoid;"' : ''; 
+                
+                formContentHTML += `<div ${breakAvoidStyle}>`; 
+
+                formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${section.title}</h3><table style="width: 100%; border-collapse: collapse;">`;
                 section.fields.forEach(field => {
                     const label = field.label;
-                    const value = workOrderData[label] || 'N/A';
+                    let value = data[label] || 'N/A';
                     
-                    // Asegurar que el campo de descripción use una fila completa
-                    const fullRowClass = (field.type === 'textarea' || field.label.includes('Observaciones')) ? 'pdf-full-row' : '';
+                    // OMISIÓN DE CAMPOS DEL ENCABEZADO
+                    if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual' || label === 'Fecha Creación Orden Trabajo') return;
+                    
+                    // APLICAR FORMATO DE FECHA DD/MM/AAAA (YA ESTÁ HECHO EN generateWorkOrder, solo aseguramos)
+                    const fieldDefinition = section.fields.find(f => f.label === label);
+                    if (fieldDefinition && fieldDefinition.type === 'date-input' && value !== 'N/A') {
+                        value = formatDateToDDMMYYYY(value);
+                    }
 
-                    htmlContent += `
-                        <div class="pdf-field ${fullRowClass}">
-                            <strong>${label}</strong>
-                            <span>${value}</span>
-                        </div>
+
+                    formContentHTML += `
+                        <tr style="border-bottom: 1px solid #B0C4DE;">
+                            <td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">${label}:</td>
+                            <td style="width: 65%; padding: 8px;">${value}</td>
+                        </tr>
                     `;
                 });
-                
-                htmlContent += `</div>`; // Cierra pdf-grid
+                formContentHTML += '</table>';
+                formContentHTML += `</div>`; 
             });
+            
+            // Contenido de las Secciones Condicionales (Fijas)
+            const type = data['Tipo de Construcción Seleccionada'];
+            if (type && type !== 'Ninguno') {
+                const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
+                
+                const pagoVgtLabel = 'Pago x VGT a cargo de Inter';
+                // El valor de este campo es el Total Calculado
+                const totalCalculado = data[`${prefix} | ${pagoVgtLabel}`] || '0.00'; 
+                
+                // Usamos la variable oculta para extraer los componentes del cálculo si es necesario
+                const calculationReference = data[`${prefix} | Total (Precio Unitario x Puntos) - BORRAR`];
+                let precioUnitario = 'N/A';
+                let puntos = 'N/A';
 
-            // 2. Área de Firmas (Fija)
-            htmlContent += `
-                    <div class="pdf-signature-area">
-                        <div class="pdf-signature">
-                            <br><br>
-                            ___________________________________<br>
-                            Firma del Responsable (Empresa Contratista)
-                        </div>
-                        <div class="pdf-signature">
-                            <br><br>
-                            ___________________________________<br>
-                            Firma de Inter (Supervisor/Coordinador)
-                        </div>
-                    </div>
+                // Intentar recuperar Precio Unitario y Puntos de los campos guardados
+                precioUnitario = data[`${prefix} | Precio Unitario`] || 'N/A';
+                puntos = data[`${prefix} | Puntos`] || 'N/A';
+
+
+                formContentHTML += `<div style="page-break-inside: avoid;">`; 
+                formContentHTML += `<h3 style="color: #4682B4; margin-top: 25px;">${type}</h3><table style="width: 100%; border-collapse: collapse;">`;
+
+                formContentHTML += `
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Costo Proyectado de la Obra:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Costo Proyectado de la Obra`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Pago realizado por:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Pago realizado por`]}</td></tr>
+                    
+                    <!-- Campo de Cálculo Renombrado/Movido -->
+                    <tr style="background-color: #e0f7fa;">
+                        <td style="font-weight: bold; padding: 10px;">${pagoVgtLabel}: (P. Unitario ${precioUnitario} x Puntos ${puntos})</td>
+                        <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
+                    </tr>
+                    
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Descripción:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Descripción`]}</td></tr>
+                    <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Abono Mensual a Recibir por el cliente:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Abono Mensual a Recibir por el cliente`]}</td></tr>
+                `;
+
+                formContentHTML += '</table>';
+                formContentHTML += `</div>`; 
+            }
+
+
+            // --- SECCIÓN DE FIRMAS AL FINAL DEL CONTENIDO ---
+             formContentHTML += `
+                <div class="pdf-signatures" style="page-break-inside: avoid; page-break-before: auto;"> 
+                    <span>
+                        Firma Contratista:<hr>
+                    </span>
+                    <span>
+                        Firma Responsable:<hr>
+                    </span>
                 </div>
-            `;
-            
-            pdfContainer.innerHTML = htmlContent;
-            
-            // 3. Generar PDF con html2pdf
-            const fileName = `OT-${workOrderData['Orden de Trabajo']}_${workOrderData['Título del Formulario'] || 'Sin_Título'}.pdf`;
+             `;
 
+            formContentHTML += '</div>';
+            
+            const element = document.createElement('div');
+            element.innerHTML = formContentHTML;
+            
             const opt = {
-                margin: 10,
-                filename: fileName.replace(/ /g, '_').replace(/[:\/\\*?"]/g, ''),
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+                margin:       20, 
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
             };
 
-            await html2pdf().set(opt).from(pdfContainer).save();
-        };
+            html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
+                const totalPages = pdf.internal.getNumberOfPages();
+                
+                for (let i = 2; i <= totalPages; i++) {
+                    pdf.setPage(i);
+                    pdf.setFontSize(14); 
+                    pdf.setTextColor(85, 85, 85); 
 
-        window.renderWorkOrdersTable = (orders) => {
-            const tbody = document.getElementById('work-orders-tbody');
-            tbody.innerHTML = ''; 
+                    const x = pdf.internal.pageSize.getWidth() - 20; 
+                    const y = 15; 
 
-            if (orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay Órdenes de Trabajo registradas o que coincidan con la búsqueda.</td></tr>';
+                    pdf.text(secondaryHeader, x, y, { 
+                        align: 'right' 
+                    });
+                }
+            }).save();
+
+        }
+        
+        function downloadOrder(orderId) {
+            const order = workOrders.find(o => o.id === orderId);
+            if (order) {
+                generatePDF(order);
+            } else {
+                alert('No se encontró la Orden de Trabajo para descargar.');
+            }
+        }
+        
+        // *** 7. LÓGICA DE ELIMINACIÓN Y CONTADOR ***
+
+        function recalculateOtCounter() {
+            if (workOrders.length === 0) {
+                otCounter = 1;
                 return;
             }
 
-            orders.forEach(order => {
+            const maxOt = workOrders.reduce((max, order) => {
+                const currentOt = parseInt(order['Orden de Trabajo'], 10); 
+                return currentOt > max ? currentOt : max;
+            }, 0); 
+            
+            otCounter = maxOt + 1;
+        }
+
+        async function deleteWorkOrder(orderId, otNumber) {
+            // Solo Administrador puede eliminar
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes. Refuerce las reglas de seguridad de Firestore.');
+                return;
+            }
+
+            if (!confirm(`¿Está seguro de que desea eliminar la Orden de Trabajo Nro. ${otNumber}? Esta acción es irreversible y ajustará el contador.`)) {
+                return;
+            }
+            
+            try {
+                await ORDERS_COLLECTION.doc(orderId).delete();
+                workOrders = workOrders.filter(order => order.id !== orderId);
+                recalculateOtCounter();
+                await saveFormStructure(true); // Se usa true porque no debe mostrar mensaje de éxito al guardar el contador
+                renderOrdersTable();
+                renderWorkOrderForm(); 
+
+                alert(`✅ Orden de Trabajo Nro. ${otNumber} eliminada y contador actualizado a ${otCounter}.`);
+
+            } catch (e) {
+                console.error("Error al eliminar la orden:", e);
+                alert("Error al eliminar la Orden de Trabajo de Firebase. Detalles: " + e.message);
+            }
+        }
+
+
+        function renderOrdersTable() {
+            const tbody = document.getElementById('orders-table').querySelector('tbody');
+            tbody.innerHTML = '';
+
+            workOrders.forEach(order => {
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
-                row.insertCell().textContent = order['Título del Formulario'] || 'Sin Título';
-                
-                // Formatear la fecha
-                let creationDate = order['Fecha Actual'] || 'N/A';
-                if (order.Timestamp && order.Timestamp.toDate) {
-                    creationDate = new Date(order.Timestamp.toDate()).toLocaleDateString('es-VE');
-                }
+                row.insertCell().textContent = order['Título del Formulario'];
+                const creationDate = order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
                 const actionCell = row.insertCell();
@@ -521,550 +1407,24 @@
                 downloadBtn.textContent = '⬇️ PDF';
                 downloadBtn.style.backgroundColor = '#77DD77'; 
                 downloadBtn.style.color = 'white';
-                downloadBtn.onclick = () => window.downloadOrder(order.id);
+                downloadBtn.onclick = () => downloadOrder(order.id);
                 actionCell.appendChild(downloadBtn);
                 
                 // Botón de Eliminar (Solo para Admin)
-                if (window.currentRole === 'admin') {
+                if (currentRole === 'admin') {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.textContent = '🗑️ Eliminar';
                     deleteBtn.style.backgroundColor = 'var(--color-error)';
                     deleteBtn.style.color = 'white';
                     deleteBtn.style.marginLeft = '5px';
-                    deleteBtn.onclick = () => window.deleteWorkOrder(order.id, order['Orden de Trabajo']);
+                    deleteBtn.onclick = () => deleteWorkOrder(order.id, order['Orden de Trabajo']);
                     actionCell.appendChild(deleteBtn);
                 }
             });
-        };
-
-        window.filterWorkOrders = () => {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const filtered = window.workOrders.filter(order => {
-                const otNumber = String(order['Orden de Trabajo']);
-                const otTitle = (order['Título del Formulario'] || '').toLowerCase();
-                return otNumber.includes(searchTerm) || otTitle.includes(searchTerm);
-            });
-            window.renderWorkOrdersTable(filtered);
-        };
-
-        window.deleteWorkOrder = async (docId, otNumber) => {
-            if (window.currentRole !== 'admin' || !confirm(`¿Está seguro de eliminar la OT Nro. ${otNumber}? Esta acción es irreversible.`)) {
-                return;
-            }
-
-            try {
-                await deleteDoc(doc(window.ORDERS_COLLECTION, docId));
-                
-                // Eliminar del array local y re-renderizar
-                window.workOrders = window.workOrders.filter(order => order.id !== docId);
-                window.renderWorkOrdersTable(window.workOrders);
-                
-                displayMessage(`OT Nro. ${otNumber} eliminada exitosamente.`, 'success');
-            } catch (e) {
-                console.error("Error al eliminar la OT:", e);
-                displayMessage("Error al eliminar la Orden de Trabajo.", 'error');
-            }
-        };
-
-        window.saveFormStructure = async (initial = false) => {
-            if (window.currentRole !== 'admin' && !initial) {
-                displayMessage("Solo los administradores pueden guardar la estructura del formulario.", 'error');
-                return;
-            }
-            
-            try {
-                const structureToSave = JSON.parse(JSON.stringify(window.formStructure)); 
-                await setDoc(window.CONFIG_DOC, { formStructure: structureToSave }, { merge: true });
-                if (!initial) {
-                    displayMessage("Estructura de formulario guardada y actualizada exitosamente.", 'success');
-                    window.renderWorkOrderForm(); 
-                }
-            } catch (e) {
-                console.error("Error al guardar la estructura:", e);
-                displayMessage("Error al guardar la estructura del formulario.", 'error');
-            }
-        };
-
-        window.resetOtCounter = async () => {
-            if (window.currentRole !== 'admin' || !confirm("ADVERTENCIA: ¿Está seguro de REINICIAR el contador de Órdenes de Trabajo a 0? Esto puede causar duplicados.")) {
-                return;
-            }
-
-            try {
-                await setDoc(window.COUNTER_DOC, { currentValue: 0 });
-                window.otCounter = 0;
-                document.getElementById('ot-counter-display').textContent = `Próximo Nro. OT: ${window.otCounter + 1}`;
-                displayMessage("Contador de OT reiniciado a 0.", 'success');
-            } catch (e) {
-                console.error("Error al reiniciar el contador:", e);
-                displayMessage("Error al reiniciar el contador de OT.", 'error');
-            }
-        };
-
-        window.renderFormEditor = () => {
-            if (window.currentRole !== 'admin') return;
-            
-            const editorDiv = document.getElementById('form-editor');
-            editorDiv.innerHTML = '<h4>Editor de Campos del Formulario</h4><p>Arrastre, edite o elimine campos y secciones.</p><div id="form-structure-editor"></div><button onclick="window.saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>';
-            
-            const structureEditor = document.getElementById('form-structure-editor');
-            structureEditor.innerHTML = '';
-            
-            window.formStructure.forEach((section, sIndex) => {
-                const sectionDiv = document.createElement('div');
-                sectionDiv.className = 'section-editor-item';
-                sectionDiv.innerHTML = `<h4>Sección ${sIndex + 1}: <input type="text" value="${section.title}" onchange="window.formStructure[${sIndex}].title = this.value"></h4>`;
-                
-                section.fields.forEach((field, fIndex) => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'field-editor-item';
-                    itemDiv.innerHTML = `
-                        <input type="text" value="${field.label}" onchange="window.formStructure[${sIndex}].fields[${fIndex}].label = this.value" placeholder="Etiqueta">
-                        <input type="text" value="${field.id}" onchange="window.formStructure[${sIndex}].fields[${fIndex}].id = this.value" placeholder="ID (Único)">
-                        <select onchange="window.formStructure[${sIndex}].fields[${fIndex}].type = this.value">
-                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>Texto</option>
-                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
-                            <option value="date" ${field.type === 'date' ? 'selected' : ''}>Fecha</option>
-                            <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto</option>
-                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista (Select)</option>
-                        </select>
-                        <button onclick="window.removeField(${sIndex}, ${fIndex})" style="background-color: var(--color-error);">🗑️</button>
-                    `;
-                    sectionDiv.appendChild(itemDiv);
-                });
-                
-                const addFieldBtn = document.createElement('button');
-                addFieldBtn.textContent = '➕ Añadir Campo';
-                addFieldBtn.onclick = () => window.addFieldToSection(sIndex);
-                sectionDiv.appendChild(addFieldBtn);
-                
-                structureEditor.appendChild(sectionDiv);
-            });
-        };
-
-        window.addFieldToSection = (sIndex) => {
-            window.formStructure[sIndex].fields.push({
-                id: `new_field_${Date.now()}`, 
-                label: `Nuevo Campo`, 
-                type: 'text', 
-                required: false
-            });
-            window.renderFormEditor();
-        };
-
-        window.removeField = (sIndex, fIndex) => {
-            if (confirm("¿Seguro que desea eliminar este campo?")) {
-                window.formStructure[sIndex].fields.splice(fIndex, 1);
-                window.renderFormEditor();
-            }
-        };
-
-        // Iniciar la aplicación después de cargar Firebase (window.initApp se expone arriba)
-        window.onload = () => window.initApp();
-
-    </script>
-    
-    <style>
-        /* Paleta de colores Pastel Azul/Gris */
-        :root {
-            --color-bg: #F0F8FF;         /* Azul muy claro (Alice Blue) */
-            --color-primary: #ADD8E6;    /* Azul claro (Light Blue) */
-            --color-secondary: #B0C4DE;  /* Azul grisáceo (Light Steel Blue) */
-            --color-accent: #87CEFA;     /* Azul cielo claro (Light Sky Blue) */
-            --color-text: #36454F;       /* Gris carbón (Charcoal) */
-            --color-button: #4682B4;     /* Azul Acero (Steel Blue) */
-            --color-button-hover: #5F9EA0; /* Azul Grisáceo (Cadet Blue) */
-            --color-error: #F08080;      /* Coral claro (Light Coral) */
-            --color-success: #90EE90;    /* Verde claro (Light Green) */
-            --color-border: #C0C0C0;     /* Plata (Silver) */
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--color-bg);
-            color: var(--color-text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        }
-
-        h1, h2, h3 {
-            color: var(--color-button);
-            border-bottom: 2px solid var(--color-primary);
-            padding-bottom: 5px;
-            margin-top: 20px;
-        }
-
-        /* --- Estilos de Login --- */
-        #login-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-width: 350px;
-            margin: 50px auto;
-            padding: 30px;
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        }
-        
-        #login-form input[type="email"], #login-form input[type="password"] {
-            padding: 10px;
-            border: 1px solid var(--color-border);
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        
-        #login-form button {
-            background-color: var(--color-button);
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        
-        #login-form button:hover {
-            background-color: var(--color-button-hover);
-        }
-
-        /* Responsive para Login */
-        @media (max-width: 600px) {
-            #login-form {
-                margin: 20px;
-                max-width: 90%;
-            }
-        }
-
-        /* --- Estilos del Header/Navegación --- */
-        #header {
-            display: flex;
-            flex-wrap: wrap; /* Añadir wrap para móvil */
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background-color: var(--color-secondary);
-            color: white;
-            border-radius: 8px 8px 0 0;
-            margin: -20px -20px 20px -20px;
-        }
-
-        #header button {
-            background-color: var(--color-error);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            margin-top: 5px; /* Ajuste móvil */
-        }
-        
-        #header button:hover {
-            background-color: #CD5C5C; 
-        }
-
-        /* --- Estilos de Pestañas (Tabs) --- */
-        .tab {
-            overflow: hidden;
-            border-bottom: 1px solid var(--color-border);
-            background-color: var(--color-bg);
-            display: flex;
-            flex-wrap: wrap;
-        }
-
-        .tab button {
-            background-color: inherit;
-            flex-grow: 1; /* Para que ocupen espacio en móvil */
-            border: none;
-            outline: none;
-            cursor: pointer;
-            padding: 14px 16px;
-            transition: 0.3s;
-            font-size: 16px;
-            color: var(--color-text);
-            min-width: 0;
-            white-space: nowrap;
-        }
-        
-        @media (max-width: 600px) {
-            .tab button {
-                font-size: 14px;
-                padding: 10px 10px;
-            }
-        }
-
-        .tab button:hover {
-            background-color: var(--color-primary);
-        }
-
-        .tab button.active {
-            background-color: var(--color-accent);
-            color: white;
-        }
-
-        .tabcontent {
-            padding: 20px 0;
-            border-top: none;
-            display: none;
-        }
-
-        /* --- Estilos de Formulario Dinámico --- */
-        .form-section {
-            border: 1px solid var(--color-border);
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            background-color: #F8F8FF; /* Ghost White */
-        }
-
-        .form-field {
-            margin-bottom: 15px;
-        }
-
-        .form-field label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .form-field input[type="text"],
-        .form-field input[type="email"],
-        .form-field input[type="number"],
-        .form-field input[type="date"],
-        .form-field textarea,
-        .form-field select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--color-border);
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-
-        .form-field textarea {
-            resize: vertical;
-        }
-
-        /* --- Estilos de Tabla (Historial) --- */
-        #work-orders-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        #work-orders-table th, #work-orders-table td {
-            border: 1px solid var(--color-border);
-            padding: 12px;
-            text-align: left;
-        }
-
-        #work-orders-table th {
-            background-color: var(--color-secondary);
-            color: white;
-            font-weight: bold;
-        }
-
-        #work-orders-table tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-
-        #work-orders-table button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            transition: opacity 0.3s;
-        }
-        
-        /* Responsive para Tabla */
-        .history-wrapper {
-            overflow-x: auto;
-        }
-        
-        @media (max-width: 600px) {
-            #work-orders-table {
-                font-size: 14px;
-            }
-        }
-
-        /* --- Estilos de PDF (Contenido) --- */
-        .pdf-content {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            box-sizing: border-box;
-            background-color: white;
-            width: 100%;
-        }
-
-        /* Estilos de tabla PDF */
-        .pdf-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .pdf-field {
-            font-size: 14px;
-            padding: 5px;
-            border-bottom: 1px dotted #ccc;
-        }
-
-        .pdf-field strong {
-            display: block;
-            color: #000;
-        }
-
-        .pdf-full-row {
-            grid-column: 1 / -1;
-        }
-        
-        .pdf-signature-area {
-            margin-top: 50px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-        }
-
-        .pdf-signature {
-            border-top: 1px solid #333;
-            text-align: center;
-            padding-top: 5px;
-            font-size: 12px;
-        }
-        
-        .hidden {
-            display: none !important;
-        }
-
-        /* --- Estilos del Editor de Administrador --- */
-        #form-structure-editor h4 {
-            color: var(--color-text);
-            border-bottom: 1px dotted var(--color-border);
-            padding-bottom: 5px;
-        }
-        .field-editor-item {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #fff;
-        }
-        .field-editor-item input, .field-editor-item select {
-            flex-grow: 1;
-            padding: 6px;
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
-        }
-    </style>
-</head>
-<body>
-
-    <div id="app" class="hidden">
-        <div class="container">
-            <div id="header">
-                <span id="welcome-message" style="flex-grow: 1;"></span>
-                <div style="display: flex; align-items: center; flex-wrap: wrap;">
-                    <span id="role-display" style="margin-right: 15px; font-weight: bold; padding: 5px 10px; background-color: var(--color-accent); border-radius: 5px; margin-top: 5px;"></span>
-                    <button id="logout-button">Cerrar Sesión</button>
-                </div>
-            </div>
-
-            <div class="tab">
-                <button class="tablinks" onclick="window.openTab(event, 'new-order')" id="defaultOpen">➕ Nueva Orden de Trabajo</button>
-                <button class="tablinks" onclick="window.openTab(event, 'history')">📜 Historial de Órdenes</button>
-                <button class="tablinks hidden" id="admin-tab" onclick="window.openTab(event, 'admin-tools')">🛠️ Herramientas de Admin</button>
-            </div>
-
-            <!-- Contenido de Pestañas -->
-
-            <div id="new-order" class="tabcontent">
-                <h2>Generar Nueva Orden de Trabajo</h2>
-                <form id="work-order-form">
-                    <p id="ot-counter-display" style="font-size: 1.2em; font-weight: bold; color: var(--color-button);"></p>
-                    <div id="dynamic-form-container">
-                        <!-- El formulario dinámico se renderizará aquí -->
-                    </div>
-                    
-                    <button type="submit" style="background-color: var(--color-success); color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 20px;">
-                        Generar y Guardar Orden de Trabajo
-                    </button>
-                </form>
-            </div>
-
-            <div id="history" class="tabcontent">
-                <h2>Historial de Órdenes de Trabajo</h2>
-                <div style="margin-bottom: 15px;">
-                    <input type="text" id="search-input" placeholder="Buscar por Título o Nro. OT" style="padding: 8px; width: calc(100% - 100px); max-width: 300px; border: 1px solid var(--color-border); border-radius: 5px;">
-                    <button onclick="window.filterWorkOrders()" style="background-color: var(--color-button); color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer;">Buscar</button>
-                </div>
-                <div class="history-wrapper">
-                    <table id="work-orders-table">
-                        <thead>
-                            <tr>
-                                <th>Nro. OT</th>
-                                <th>Título</th>
-                                <th>Fecha de Creación</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="work-orders-tbody">
-                            <!-- Las órdenes se cargarán aquí -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="admin-tools" class="tabcontent hidden">
-                <h2>Herramientas de Administración</h2>
-                <p>⚠️ **Advertencia:** Modificar estos ajustes afecta la estructura de todas las nuevas Órdenes de Trabajo.</p>
-                <div id="form-editor">
-                    <!-- El editor de formulario se renderizará aquí -->
-                </div>
-                <button onclick="window.resetOtCounter()" style="background-color: var(--color-error); color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">
-                    Reiniciar Contador de OT
-                </button>
-            </div>
-            
-            <!-- Contenido oculto para generar el PDF (Requerido por html2pdf) -->
-            <div id="pdf-content-container" class="hidden">
-                <!-- El HTML para el PDF se generará aquí antes de la descarga -->
-            </div>
-
-        </div>
-    </div>
-    
-    <!-- Formulario de Login -->
-    <div id="login-container">
-        <form id="login-form">
-            <h2>Inicio de Sesión</h2>
-            <p id="login-error" style="color: var(--color-error);"></p>
-            <input type="email" id="login-email" placeholder="Correo Electrónico" required>
-            <input type="password" id="login-password" placeholder="Contraseña" required>
-            <button type="submit">Iniciar Sesión</button>
-        </form>
-    </div>
-
-    <script>
-        // Todas las funciones y variables están ahora declaradas y expuestas
-        // dentro del script type="module" para evitar errores de ReferenceError.
-        // Solo incluimos llamadas a las funciones expuestas a window aquí.
     </script>
 
 </body>
 </html>
+
