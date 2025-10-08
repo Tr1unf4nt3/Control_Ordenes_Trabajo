@@ -1024,6 +1024,26 @@
                     
                     <hr>
 
+                    <div class="calculation-group">
+                        <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span class="formula-symbol">X</span>
+                        
+                        <label for="${prefix}_puntos">Puntos (*):</label>
+                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
+                        
+                        <span class="formula-symbol">=</span>
+                        
+                        <div class="calculation-total-section">
+                            <label style="flex-basis: auto;">${totalDisplayLabel1}</label>
+                            <div id="${prefix}_total_display" class="total-display">0.00</div>
+                            <input type="hidden" id="${prefix}_total_hidden" name="${prefix}_total_hidden" value="0.00">
+                        </div>
+                    </div>
+
+                    <hr>
+                    
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
                         <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required></textarea></p>
                     
@@ -1436,3 +1456,4 @@
 
 </body>
 </html>
+
