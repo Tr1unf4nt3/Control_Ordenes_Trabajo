@@ -984,7 +984,8 @@
             
             // NOTA: Se eliminó el campo ${prefix}_pago_vgt_inter. 
             // El campo de cálculo ahora usa el nombre "Pago x VGT a cargo de Inter (*):"
-            const totalDisplayLabel = "Pago x VGT a cargo de Inter (*):"; 
+            const totalDisplayLabel = "Pago x VGT CANTV a cargo de Inter (*):"; 
+            const totalDisplayLabel = "Pago x VGT EDC cargo de Inter (*):";
 
             return `
                 <div class="form-section" id="conditional_${prefix}_section" style="display: none;">
@@ -1156,7 +1157,8 @@
                 orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value);
                 
                 // RENOMBRADO EN EL GUARDADO (Utiliza el nombre del total calculado)
-                orderData[`${prefix} | Pago x VGT a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
+                orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
+                orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden`);
 
                 orderData[`${prefix} | Precio Unitario`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2);
                 orderData[`${prefix} | Puntos`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0); 
@@ -1256,9 +1258,11 @@
             if (type && type !== 'Ninguno') {
                 const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                 
-                const pagoVgtLabel = 'Pago x VGT a cargo de Inter';
+                const pagoVgtLabel = 'Pago x VGT CANTV a cargo de Inter';
+                const pagoVgtLabel1 = 'Pago x VGT EDC cargo de Inter';
                 // El valor de este campo es el Total Calculado
-                const totalCalculado = data[`${prefix} | ${pagoVgtLabel}`] || '0.00'; 
+                const totalCalculado = data[`${prefix} | ${pagoVgtLabel}`] || '0.00';
+                const totalCalculado1 = data[`${prefix} | ${pagoVgtLabel1}`] || '0.00'; 
                 
                 // Usamos la variable oculta para extraer los componentes del cálculo si es necesario
                 const calculationReference = data[`${prefix} | Total (Precio Unitario x Puntos) - BORRAR`];
@@ -1268,6 +1272,9 @@
                 // Intentar recuperar Precio Unitario y Puntos de los campos guardados
                 precioUnitario = data[`${prefix} | Precio Unitario`] || 'N/A';
                 puntos = data[`${prefix} | Puntos`] || 'N/A';
+
+                precioUnitario1 = data[`${prefix} | Precio Unitario`] || 'N/A';
+                puntos1 = data[`${prefix} | Puntos`] || 'N/A';
 
 
                 formContentHTML += `<div style="page-break-inside: avoid;">`; 
@@ -1280,7 +1287,9 @@
                     <!-- Campo de Cálculo Renombrado/Movido -->
                     <tr style="background-color: #e0f7fa;">
                         <td style="font-weight: bold; padding: 10px;">${pagoVgtLabel}: (P. Unitario ${precioUnitario} x Puntos ${puntos})</td>
-                        <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td> 
+                        <td style="font-weight: bold; padding: 10px;">${pagoVgtLabel1}: (P. Unitario ${precioUnitario1} x Puntos ${puntos1})</td>
+                        <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado}</td>
+                        <td style="font-weight: bold; padding: 10px; background-color: #ADD8E6;">${totalCalculado1}</td>
                     </tr>
                     
                     <tr><td style="width: 35%; padding: 8px; font-weight: bold; background-color: #F0F8FF;">Descripción:</td><td style="width: 65%; padding: 8px;">${data[`${prefix} | Descripción`]}</td></tr>
@@ -1427,4 +1436,3 @@
 
 </body>
 </html>
-
