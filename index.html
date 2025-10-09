@@ -1411,30 +1411,22 @@
                 }
             };
 
-            html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
-                const totalPages = pdf.internal.getNumberOfPages();
-                
-                for (let i = 2; i <= totalPages; i++) {
-                    pdf.setPage(i);
-                    pdf.setFontSize(12); 
-                    pdf.setTextColor(85, 85, 85); 
-
-                    const x = pdf.internal.pageSize.getWidth() - 15; 
-                    const y = 10; 
-
-                    pdf.text(secondaryHeader, x, y, { 
-                        align: 'right' 
-                    });
-                }
-            }).save();
+            // *** CORRECCIÓN: USAR .save() DIRECTAMENTE ***
+            html2pdf().set(opt).from(element).save();
         }
         
+        // *** CORRECCIÓN: FUNCIÓN downloadOrder MEJORADA ***
         function downloadOrder(orderId) {
+            console.log('Intentando descargar orden ID:', orderId);
+            console.log('Órdenes disponibles:', workOrders);
+            
             const order = workOrders.find(o => o.id === orderId);
             if (order) {
+                console.log('Orden encontrada:', order);
                 generatePDF(order);
             } else {
-                alert('No se encontró la Orden de Trabajo para descargar.');
+                console.error('Orden no encontrada con ID:', orderId);
+                alert('No se encontró la Orden de Trabajo para descargar. ID: ' + orderId);
             }
         }
         
@@ -1530,7 +1522,10 @@
                 downloadBtn.textContent = '⬇️ PDF';
                 downloadBtn.style.backgroundColor = '#77DD77'; 
                 downloadBtn.style.color = 'white';
-                downloadBtn.onclick = () => downloadOrder(order.id);
+                downloadBtn.onclick = () => {
+                    console.log('Botón PDF clickeado para orden:', order.id);
+                    downloadOrder(order.id);
+                };
                 actionCell.appendChild(downloadBtn);
                 
                 // Botón de Eliminar (Solo para Admin)
