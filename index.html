@@ -260,6 +260,7 @@
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
             <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
+            <button onclick="cleanDuplicateOrders()" style="background-color: var(--color-error); color: white; margin-left: 10px;">🧹 Limpiar Duplicados</button>
         </div>
     </div>
 
@@ -498,8 +499,8 @@
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo
-                const ordersSnapshot = await ORDERS_COLLECTION.get();
+                // Cargar Órdenes de Trabajo CON ORDENAMIENTO
+                const ordersSnapshot = await ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Asegurar que el contador esté correcto al inicio
@@ -1389,12 +1390,36 @@
                 return;
             }
 
-            const maxOt = workOrders.reduce((max, order) => {
-                const currentOt = parseInt(order['Orden de Trabajo'], 10); 
-                return currentOt > max ? currentOt : max;
-            }, 0); 
+            // Extraer todos los números de orden y convertirlos a números
+            const allOtNumbers = workOrders.map(order => {
+                const otNumber = order['Orden de Trabajo'];
+                return typeof otNumber === 'string' ? parseInt(otNumber, 10) : otNumber;
+            }).filter(ot => !isNaN(ot)); // Filtrar valores no numéricos
+
+            if (allOtNumbers.length === 0) {
+                otCounter = 1;
+                return;
+            }
+
+            // Encontrar el máximo número de orden
+            const maxOt = Math.max(...allOtNumbers);
             
-            otCounter = maxOt + 1;
+            // Verificar si hay duplicados
+            const uniqueOtNumbers = [...new Set(allOtNumbers)];
+            if (uniqueOtNumbers.length !== allOtNumbers.length) {
+                console.warn('⚠️ Se detectaron números de orden duplicados en la base de datos');
+                
+                // Encontrar el siguiente número disponible (sin duplicados)
+                let nextAvailable = maxOt + 1;
+                while (allOtNumbers.includes(nextAvailable)) {
+                    nextAvailable++;
+                }
+                otCounter = nextAvailable;
+            } else {
+                otCounter = maxOt + 1;
+            }
+            
+            console.log(`Contador recalculado: ${otCounter} (Máximo encontrado: ${maxOt})`);
         }
 
         async function deleteWorkOrder(orderId, otNumber) {
@@ -1424,12 +1449,18 @@
             }
         }
 
-
         function renderOrdersTable() {
             const tbody = document.getElementById('orders-table').querySelector('tbody');
             tbody.innerHTML = '';
 
-            workOrders.forEach(order => {
+            // Ordenar las órdenes por número de OT de forma descendente
+            const sortedOrders = [...workOrders].sort((a, b) => {
+                const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
+                const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
+                return otB - otA; // Orden descendente (más recientes primero)
+            });
+
+            sortedOrders.forEach(order => {
                 const row = tbody.insertRow();
                 row.insertCell().textContent = order['Orden de Trabajo'];
                 row.insertCell().textContent = order['Título del Formulario'];
@@ -1457,6 +1488,71 @@
                     actionCell.appendChild(deleteBtn);
                 }
             });
+        }
+
+        // *** 8. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
+        async function cleanDuplicateOrders() {
+            if (currentRole !== 'admin') {
+                alert('Solo administradores pueden ejecutar esta función');
+                return;
+            }
+            
+            if (!confirm('¿Está seguro de que desea limpiar órdenes duplicadas? Esta acción eliminará todas las órdenes con números duplicados, manteniendo solo la más reciente de cada número.')) {
+                return;
+            }
+            
+            try {
+                const ordersSnapshot = await ORDERS_COLLECTION.get();
+                const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Encontrar duplicados por número de OT
+                const otCounts = {};
+                allOrders.forEach(order => {
+                    const otNumber = order['Orden de Trabajo'];
+                    if (!otCounts[otNumber]) {
+                        otCounts[otNumber] = [];
+                    }
+                    otCounts[otNumber].push(order);
+                });
+                
+                const duplicates = Object.entries(otCounts).filter(([ot, orders]) => orders.length > 1);
+                
+                if (duplicates.length === 0) {
+                    alert('No se encontraron órdenes duplicadas');
+                    return;
+                }
+                
+                console.log('Duplicados encontrados:', duplicates);
+                
+                // Eliminar duplicados (mantener el más reciente por fecha de creación)
+                let deletedCount = 0;
+                for (const [otNumber, orders] of duplicates) {
+                    // Ordenar por fecha (mantener el más reciente)
+                    const sorted = orders.sort((a, b) => {
+                        const dateA = new Date(a['Fecha Actual'] || 0);
+                        const dateB = new Date(b['Fecha Actual'] || 0);
+                        return dateB - dateA;
+                    });
+                    
+                    // Eliminar todos excepto el primero (más reciente)
+                    for (let i = 1; i < sorted.length; i++) {
+                        await ORDERS_COLLECTION.doc(sorted[i].id).delete();
+                        deletedCount++;
+                        console.log(`Eliminada orden duplicada: ${otNumber} - ID: ${sorted[i].id}`);
+                    }
+                }
+                
+                alert(`Se eliminaron ${deletedCount} órdenes duplicadas. Recargue la página para ver los cambios.`);
+                
+                // Recargar datos
+                await loadInitialData();
+                renderOrdersTable();
+                renderWorkOrderForm();
+                
+            } catch (error) {
+                console.error('Error limpiando duplicados:', error);
+                alert('Error al limpiar duplicados: ' + error.message);
+            }
         }
 
     </script>
