@@ -24,6 +24,8 @@
             --color-success: #77DD77;    /* Verde pastel para éxito */
             --color-warning: #FFB347;    /* Naranja pastel para advertencias */
             --color-filter: #DDA0DD;     /* Color para elementos de filtro */
+            --color-in-progress: #FFD700; /* Amarillo para "En curso" */
+            --color-completed: #77DD77;  /* Verde para "Finalizada" */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -333,6 +335,76 @@
             flex: 1;
         }
 
+        /* NUEVOS ESTILOS PARA ESTADOS DE ÓRDENES */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 0.85em;
+            text-align: center;
+        }
+        
+        .status-in-progress {
+            background-color: var(--color-in-progress);
+            color: #333;
+        }
+        
+        .status-completed {
+            background-color: var(--color-completed);
+            color: white;
+        }
+        
+        .complete-button {
+            background-color: var(--color-success);
+            color: white;
+        }
+        
+        .complete-button:hover {
+            background-color: #66bb6a;
+        }
+        
+        /* Estilos para el modal de certificación */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .modal-back-button {
+            background-color: var(--color-secondary);
+            color: white;
+        }
+        
+        .modal-accept-button {
+            background-color: var(--color-success);
+            color: white;
+        }
+
     </style>
 </head>
 <body>
@@ -351,7 +423,8 @@
         <div class="tab">
             <!-- ID AÑADIDO: new-order-tab-button -->
             <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
-            <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes Creadas</button>
+            <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes en Curso</button>
+            <button class="tablinks" onclick="openTab(event, 'completed-orders')">✅ Órdenes Finalizadas</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
@@ -365,11 +438,11 @@
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
         </div>
 
-        <!-- Pestaña 2: Visualización de Órdenes de Trabajo -->
+        <!-- Pestaña 2: Visualización de Órdenes de Trabajo en Curso -->
         <div id="view-orders" class="tabcontent">
-            <h3>Registro Histórico de Órdenes</h3>
+            <h3>Órdenes de Trabajo en Curso</h3>
             
-            <!-- NUEVA SECCIÓN: Filtros Dinámicos -->
+            <!-- NUEVA SECCIÓN: Filtros de Búsqueda -->
             <div class="filters-section">
                 <h4>🔍 Filtros de Búsqueda</h4>
                 <div class="filter-controls">
@@ -416,6 +489,7 @@
                         <th>Nro. OT</th>
                         <th>Título</th>
                         <th>Fecha Creación</th>
+                        <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -427,7 +501,70 @@
             </div>
         </div>
 
-        <!-- Pestaña 3: Edición de Formulario (Solo Administrador) -->
+        <!-- Pestaña 3: Órdenes Finalizadas -->
+        <div id="completed-orders" class="tabcontent">
+            <h3>Órdenes de Trabajo Finalizadas</h3>
+            
+            <!-- NUEVA SECCIÓN: Filtros para Órdenes Finalizadas -->
+            <div class="filters-section">
+                <h4>🔍 Filtros de Búsqueda</h4>
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="completed-filter-field">Campo a filtrar:</label>
+                        <select id="completed-filter-field" onchange="updateCompletedFilterInput()">
+                            <option value="">Seleccionar campo...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="completed-filter-operator">Tipo de filtro:</label>
+                        <select id="completed-filter-operator" onchange="updateCompletedFilterInput()">
+                            <option value="contains">Contiene texto</option>
+                            <option value="equals">Es igual a</option>
+                            <option value="startsWith">Comienza con</option>
+                            <option value="endsWith">Termina con</option>
+                            <option value="range">Rango</option>
+                            <option value="greater">Mayor que</option>
+                            <option value="less">Menor que</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" id="completed-filter-value-container">
+                        <label for="completed-filter-value">Valor:</label>
+                        <input type="text" id="completed-filter-value" placeholder="Texto a buscar...">
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button class="filter-button" onclick="addCompletedFilter()">➕ Agregar Filtro</button>
+                        <button class="filter-button" onclick="clearAllCompletedFilters()" style="background-color: var(--color-error);">🗑️ Limpiar Filtros</button>
+                    </div>
+                </div>
+                
+                <div id="completed-active-filters" class="active-filters" style="display: none;">
+                    <strong>Filtros activos:</strong>
+                    <div id="completed-active-filters-list"></div>
+                </div>
+            </div>
+            
+            <table id="completed-orders-table">
+                <thead>
+                    <tr>
+                        <th>Nro. OT</th>
+                        <th>Título</th>
+                        <th>Fecha Creación</th>
+                        <th>Fecha Finalización</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <div id="no-completed-results" style="display: none; text-align: center; padding: 20px; color: var(--color-error);">
+                <p>No se encontraron órdenes finalizadas.</p>
+            </div>
+        </div>
+
+        <!-- Pestaña 4: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
@@ -453,33 +590,124 @@
         </div>
     </div>
 
+    <!-- Modal para Certificación de Obras -->
+    <div id="certification-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 id="certification-title">Certificación de Obras</h3>
+            <form id="certification-form">
+                <div class="form-section">
+                    <h4>I. Datos de Certificación</h4>
+                    <p>
+                        <label for="certification-number">Número de Certificación:</label>
+                        <input type="text" id="certification-number" disabled>
+                    </p>
+                    <p>
+                        <label for="certification-date">Fecha de la Certificación:</label>
+                        <input type="text" id="certification-date" disabled>
+                    </p>
+                </div>
+                
+                <div class="form-section">
+                    <h4>II. Identificación</h4>
+                    <p>
+                        <label for="contractor-company">Empresa Contratista:</label>
+                        <input type="text" id="contractor-company" disabled>
+                    </p>
+                    <p>
+                        <label for="contractor-rif">Identificación Fiscal RIF:</label>
+                        <input type="text" id="contractor-rif" disabled>
+                    </p>
+                </div>
+                
+                <div class="form-section">
+                    <h4>III. Información del Proyecto</h4>
+                    <p>
+                        <label for="work-order-reference">Corresponde Orden de trabajo N°:</label>
+                        <input type="text" id="work-order-reference" disabled>
+                    </p>
+                    <p>
+                        <label for="start-date">Fechas de Inicio:</label>
+                        <input type="date" id="start-date" required>
+                    </p>
+                    <p>
+                        <label for="end-date">Fin de la Obra:</label>
+                        <input type="date" id="end-date" required>
+                    </p>
+                </div>
+                
+                <div class="form-section">
+                    <h4>IV. Detalle de los trabajos realizados</h4>
+                    <p>
+                        <textarea id="work-details" required style="min-height: 120px;" placeholder="Describa detalladamente los trabajos realizados..."></textarea>
+                    </p>
+                    <p>
+                        <label for="total-amount">Importe total de la obra:</label>
+                        <input type="number" id="total-amount" step="0.01" min="0" required placeholder="0.00">
+                    </p>
+                </div>
+                
+                <div class="form-section">
+                    <h4>V. Desviaciones y Justificación</h4>
+                    <p>
+                        <textarea id="deviations" style="min-height: 100px;" placeholder="Detalle de desviaciones respecto al plan original (Justificar y valorar en caso de existir)..."></textarea>
+                    </p>
+                </div>
+                
+                <div class="form-section">
+                    <h4>Firmas</h4>
+                    <div style="display: flex; justify-content: space-between;">
+                        <div style="width: 45%;">
+                            <p><strong>Firma Jefe Técnico (Firma/Sello)</strong></p>
+                            <div style="border-bottom: 1px solid #36454F; margin-top: 40px;"></div>
+                        </div>
+                        <div style="width: 45%;">
+                            <p><strong>Firma Gerente Técnico (Firma/Sello)</strong></p>
+                            <div style="border-bottom: 1px solid #36454F; margin-top: 40px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="modal-actions">
+                <button class="modal-back-button" onclick="closeCertificationModal()">← Atrás</button>
+                <button class="modal-accept-button" onclick="completeWorkOrder()">✅ Aceptar y Finalizar Orden</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
         // ** CONFIGURACIÓN DE FIREBASE ACTUALIZADA **
         const firebaseConfig = {
-          // *** CLAVE API ACTUALIZADA CON EL VALOR PROPORCIONADO POR EL USUARIO ***
-          apiKey: "AIzaSyBHgF18eLwdZbl1g4OkDu-_NWkBnfLh3EA", 
-          authDomain: "ordenestrabajo-39eab.firebaseapp.com",
-          projectId: "ordenestrabajo-39eab",
-          storageBucket: "ordenestrabajo-39eab.firebasestorage.app",
-          messagingSenderId: "561184772303",
-          appId: "1:561184772303:web:765f5859b4b3a332e827ba"
+          apiKey: "AIzaSyC40g7AnTbn2mtamOx_siPhckajgNCjZmg",
+          authDomain: "gestionordenestrabajo.firebaseapp.com",
+          projectId: "gestionordenestrabajo",
+          storageBucket: "gestionordenestrabajo.firebasestorage.app",
+          messagingSenderId: "478774861151",
+          appId: "1:478774861151:web:e956dca23988e5d8fceaea"
         };
         
-        firebase.initializeApp(firebaseConfig);
+        // Verificar si Firebase ya está inicializado
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.firestore();
         
         // Referencias a las "colecciones" de la base de datos
         const ORDERS_COLLECTION = db.collection("workOrders");
+        const COMPLETED_ORDERS_COLLECTION = db.collection("completedWorkOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
         
         // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
+        let completedOrders = [];
         let otCounter = 1; 
         let currentRole = null; 
-        let activeFilters = []; // NUEVA: Almacena los filtros activos
+        let activeFilters = []; // Almacena los filtros activos
+        let completedActiveFilters = []; // Almacena los filtros activos para órdenes finalizadas
+        let currentOrderForCertification = null; // Almacena la orden actual para certificación
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -693,9 +921,13 @@
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo CON ORDENAMIENTO
+                // Cargar Órdenes de Trabajo EN CURSO con ordenamiento
                 const ordersSnapshot = await ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Cargar Órdenes de Trabajo FINALIZADAS con ordenamiento
+                const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
+                completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Asegurar que el contador esté correcto al inicio
                 recalculateOtCounter();
@@ -801,6 +1033,7 @@
             
             renderWorkOrderForm();
             renderOrdersTable();
+            renderCompletedOrdersTable();
         }
 
         // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
@@ -837,7 +1070,11 @@
             if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
             else if (tabName === 'view-orders') {
                 renderOrdersTable();
-                initializeFilters(); // NUEVO: Inicializar filtros cuando se abre la pestaña
+                initializeFilters(); // Inicializar filtros cuando se abre la pestaña
+            }
+            else if (tabName === 'completed-orders') {
+                renderCompletedOrdersTable();
+                initializeCompletedFilters(); // NUEVO: Inicializar filtros de órdenes finalizadas
             }
             else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
@@ -977,13 +1214,16 @@
          */
         function getCurrentCaracasDate() {
             const now = new Date();
-            // Usamos las opciones de formato y la zona horaria de Caracas para forzar la fecha GMT-4.
-            return now.toLocaleDateString('es-ES', { 
-                timeZone: 'America/Caracas',
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
+            // Ajustar a zona horaria de Caracas (GMT-4)
+            const caracasOffset = -4 * 60; // minutos
+            const localOffset = now.getTimezoneOffset();
+            const caracasTime = new Date(now.getTime() + (localOffset - caracasOffset) * 60000);
+            
+            const day = String(caracasTime.getDate()).padStart(2, '0');
+            const month = String(caracasTime.getMonth() + 1).padStart(2, '0');
+            const year = caracasTime.getFullYear();
+            
+            return `${day}/${month}/${year}`;
         }
         
         /**
@@ -1012,65 +1252,109 @@
 
         // FUNCIÓN CORREGIDA: Ahora calcula correctamente ambos totales por separado
         function calculateNewTotal(prefix) {
-            // Cálculo para CANTV
-            const precioUnitario = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')) || 0;
-            const puntos = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')) || 0;
-            const total = precioUnitario * puntos;
-            
-            document.getElementById(`${prefix}_total_display`).textContent = total.toFixed(2);
-            document.getElementById(`${prefix}_total_hidden`).value = total.toFixed(2);
-            
-            // Cálculo para EDC (usando los campos con sufijo "1")
-            const precioUnitario1 = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')) || 0;
-            const puntos1 = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')) || 0;
-            const total1 = precioUnitario1 * puntos1;
-            
-            document.getElementById(`${prefix}_total_display1`).textContent = total1.toFixed(2);
-            document.getElementById(`${prefix}_total_hidden1`).value = total1.toFixed(2);
+            try {
+                // Cálculo para CANTV
+                const precioUnitario = parseFloat(
+                    (document.getElementById(`${prefix}_precio_unitario`).value || '0')
+                    .replace(',', '.')
+                ) || 0;
+                
+                const puntos = parseFloat(
+                    (document.getElementById(`${prefix}_puntos`).value || '0')
+                    .replace(',', '.')
+                ) || 0;
+                
+                const total = precioUnitario * puntos;
+                
+                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
+                const totalDisplay = document.getElementById(`${prefix}_total_display`);
+                const totalHidden = document.getElementById(`${prefix}_total_hidden`);
+                
+                if (totalDisplay) totalDisplay.textContent = total.toFixed(2);
+                if (totalHidden) totalHidden.value = total.toFixed(2);
+                
+                // Cálculo para EDC
+                const precioUnitario1 = parseFloat(
+                    (document.getElementById(`${prefix}_precio_unitario1`).value || '0')
+                    .replace(',', '.')
+                ) || 0;
+                
+                const puntos1 = parseFloat(
+                    (document.getElementById(`${prefix}_puntos1`).value || '0')
+                    .replace(',', '.')
+                ) || 0;
+                
+                const total1 = precioUnitario1 * puntos1;
+                
+                const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
+                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                
+                if (totalDisplay1) totalDisplay1.textContent = total1.toFixed(2);
+                if (totalHidden1) totalHidden1.value = total1.toFixed(2);
+                
+            } catch (error) {
+                console.error('Error en calculateNewTotal:', error);
+            }
         }
 
 
         function toggleConditionalSection(type) {
-            const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
-            const ispSection = document.getElementById('conditional_isp_section');
-            const nodeAccessButton = document.getElementById('check_node_acceso');
-            const ispButton = document.getElementById('check_isp');
+            try {
+                const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
+                const ispSection = document.getElementById('conditional_isp_section');
+                const nodeAccessButton = document.getElementById('check_node_acceso');
+                const ispButton = document.getElementById('check_isp');
 
-            // 1. Limpiar y resetear ambas secciones
-            nodeAccessSection.style.display = 'none';
-            ispSection.style.display = 'none';
-            nodeAccessButton.classList.remove('active');
-            ispButton.classList.remove('active');
-            
-            // 2. Resetear inputs y selecciones
-            
-            const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
-            const selectsToReset = ['pago_por_realizado'];
+                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
+                if (!nodeAccessSection || !ispSection || !nodeAccessButton || !ispButton) {
+                    console.error('Elementos de sección condicional no encontrados');
+                    return;
+                }
 
-            ['node_acceso', 'isp'].forEach(prefix => {
-                fieldsToReset.forEach(field => {
-                    const el = document.getElementById(`${prefix}_${field}`);
-                    if (el) el.value = '';
-                });
-                selectsToReset.forEach(field => {
-                    const el = document.getElementById(`${prefix}_${field}`);
-                    if (el) el.value = 'Inter'; // Valor por defecto
-                });
+                // 1. Limpiar y resetear ambas secciones
+                nodeAccessSection.style.display = 'none';
+                ispSection.style.display = 'none';
+                nodeAccessButton.classList.remove('active');
+                ispButton.classList.remove('active');
                 
-                document.getElementById(`${prefix}_total_display`).textContent = '0.00';
-                document.getElementById(`${prefix}_total_display1`).textContent = '0.00';
-                document.getElementById(`${prefix}_total_hidden`).value = '0.00';
-                document.getElementById(`${prefix}_total_hidden1`).value = '0.00';
-            });
+                // 2. Resetear inputs y selecciones
+                
+                const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
+                const selectsToReset = ['pago_por_realizado'];
+
+                ['node_acceso', 'isp'].forEach(prefix => {
+                    fieldsToReset.forEach(field => {
+                        const el = document.getElementById(`${prefix}_${field}`);
+                        if (el) el.value = '';
+                    });
+                    selectsToReset.forEach(field => {
+                        const el = document.getElementById(`${prefix}_${field}`);
+                        if (el) el.value = 'Inter'; // Valor por defecto
+                    });
+                    
+                    // Verificar que existan antes de intentar acceder
+                    const totalDisplay = document.getElementById(`${prefix}_total_display`);
+                    const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
+                    const totalHidden = document.getElementById(`${prefix}_total_hidden`);
+                    const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                    
+                    if (totalDisplay) totalDisplay.textContent = '0.00';
+                    if (totalDisplay1) totalDisplay1.textContent = '0.00';
+                    if (totalHidden) totalHidden.value = '0.00';
+                    if (totalHidden1) totalHidden1.value = '0.00';
+                });
 
 
-            // 3. Mostrar la sección seleccionada
-            if (type === 'node_acceso') {
-                nodeAccessSection.style.display = 'block';
-                nodeAccessButton.classList.add('active');
-            } else if (type === 'isp') {
-                ispSection.style.display = 'block';
-                ispButton.classList.add('active');
+                // 3. Mostrar la sección seleccionada
+                if (type === 'node_acceso') {
+                    nodeAccessSection.style.display = 'block';
+                    nodeAccessButton.classList.add('active');
+                } else if (type === 'isp') {
+                    ispSection.style.display = 'block';
+                    ispButton.classList.add('active');
+                }
+            } catch (error) {
+                console.error('Error en toggleConditionalSection:', error);
             }
         }
 
@@ -1315,7 +1599,14 @@
                     document.getElementById(`${prefix}_abono_mensual`)
                 ];
 
+                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 for (const campo of camposCondicionales) {
+                    if (!campo) {
+                        console.error(`Campo condicional no encontrado: ${prefix}`);
+                        firstInvalidField = document.getElementById(`check_${prefix}`);
+                        break;
+                    }
+                    
                     if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
                         if (!campo.value.trim()) {
                             firstInvalidField = campo;
@@ -1404,27 +1695,30 @@
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
             }
 
+            // 6. AGREGAR ESTADO "EN CURSO" A LA ORDEN
+            orderData['Estado'] = 'En curso';
+            orderData['Fecha de Creación'] = caracasDate;
 
-            // 6. **GUARDAR EN FIREBASE**
+            // 7. **GUARDAR EN FIREBASE**
             console.log("Datos a guardar en Firebase:", orderData); // Para debugging
             
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
-                // 7. Actualizar array local y contador
+                // 8. Actualizar array local y contador
                 orderData.id = docRef.id; 
                 workOrders.push(orderData);
                 otCounter++;
                 
-                // 8. Guardar la nueva estructura/contador
+                // 9. Guardar la nueva estructura/contador
                 await saveFormStructure(true); 
 
-                // 9. Generar PDF - CORREGIDO
+                // 10. Generar PDF - CORREGIDO
                 console.log('Generando PDF para nueva orden...');
                 await generatePDF(orderData);
                 console.log('PDF generado exitosamente');
 
-                // 10. Reiniciar UI
+                // 11. Reiniciar UI
                 form.reset();
                 renderWorkOrderForm(); 
                 renderOrdersTable(); 
@@ -1895,6 +2189,31 @@
             }
         }
 
+        // *** FUNCIÓN PARA ELIMINAR ÓRDENES FINALIZADAS ***
+        async function deleteCompletedOrder(orderId, otNumber) {
+            // Solo Administrador puede eliminar
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes finalizadas.');
+                return;
+            }
+
+            if (!confirm(`¿Está seguro de que desea eliminar permanentemente la Orden Finalizada Nro. ${otNumber}? Esta acción es irreversible.`)) {
+                return;
+            }
+            
+            try {
+                await COMPLETED_ORDERS_COLLECTION.doc(orderId).delete();
+                completedOrders = completedOrders.filter(order => order.id !== orderId);
+                renderCompletedOrdersTable();
+                
+                alert(`✅ Orden Finalizada Nro. ${otNumber} eliminada permanentemente.`);
+
+            } catch (e) {
+                console.error("Error al eliminar la orden finalizada:", e);
+                alert("Error al eliminar la Orden Finalizada de Firebase. Detalles: " + e.message);
+            }
+        }
+
         function renderOrdersTable() {
             const tbody = document.getElementById('orders-table').querySelector('tbody');
             const noResultsDiv = document.getElementById('no-results');
@@ -1936,11 +2255,11 @@
                 });
             }
 
-            // Ordenar las órdenes por número de OT de forma descendente
+            // MODIFICACIÓN: Ordenar las órdenes por número de OT de forma ASCENDENTE (menor a mayor)
             const sortedOrders = [...filteredOrders].sort((a, b) => {
                 const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
                 const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
-                return otB - otA; // Orden descendente (más recientes primero)
+                return otA - otB; // Cambiado a orden ascendente (menor a mayor)
             });
 
             // Mostrar mensaje si no hay resultados
@@ -1957,6 +2276,13 @@
                 const creationDate = order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
+                // Celda de Estado
+                const statusCell = row.insertCell();
+                const statusBadge = document.createElement('span');
+                statusBadge.className = 'status-badge status-in-progress';
+                statusBadge.textContent = 'En curso';
+                statusCell.appendChild(statusBadge);
+                
                 const actionCell = row.insertCell();
                 
                 // Botón de Descarga PDF
@@ -1969,6 +2295,14 @@
                     downloadOrder(order.id);
                 };
                 actionCell.appendChild(downloadBtn);
+                
+                // Botón de Finalizar
+                const completeBtn = document.createElement('button');
+                completeBtn.textContent = '✅ Finalizar';
+                completeBtn.className = 'complete-button';
+                completeBtn.style.marginLeft = '5px';
+                completeBtn.onclick = () => openCertificationModal(order);
+                actionCell.appendChild(completeBtn);
                 
                 // Botón de Eliminar (Solo para Admin)
                 if (currentRole === 'admin') {
@@ -1983,7 +2317,456 @@
             });
         }
 
-        // *** 8. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
+        // *** 8. NUEVAS FUNCIONES PARA CERTIFICACIÓN Y FINALIZACIÓN ***
+
+        /**
+         * Abre el modal de certificación para finalizar una orden
+         */
+        function openCertificationModal(order) {
+            currentOrderForCertification = order;
+            
+            // Configurar los campos del modal
+            document.getElementById('certification-title').textContent = 
+                `Certificación de Obras Nro. ${order['Orden de Trabajo']}`;
+            document.getElementById('certification-number').value = order['Orden de Trabajo'];
+            document.getElementById('certification-date').value = getCurrentCaracasDate();
+            document.getElementById('work-order-reference').value = order['Orden de Trabajo'];
+            
+            // Buscar información de la empresa contratista
+            let companyName = '';
+            let companyRif = '';
+            
+            // Buscar en los campos de la orden
+            for (const key in order) {
+                if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
+                    companyName = order[key];
+                    break;
+                }
+            }
+            
+            // Buscar RIF
+            for (const key in order) {
+                if (key.includes('Rif') && order[key] && order[key] !== 'N/A') {
+                    companyRif = order[key];
+                    break;
+                }
+            }
+            
+            document.getElementById('contractor-company').value = companyName || 'No especificada';
+            document.getElementById('contractor-rif').value = companyRif || 'No especificado';
+            
+            // Limpiar campos de fecha
+            document.getElementById('start-date').value = '';
+            document.getElementById('end-date').value = '';
+            document.getElementById('work-details').value = '';
+            document.getElementById('total-amount').value = '';
+            document.getElementById('deviations').value = '';
+            
+            // Mostrar el modal
+            document.getElementById('certification-modal').style.display = 'flex';
+        }
+
+        /**
+         * Cierra el modal de certificación
+         */
+        function closeCertificationModal() {
+            document.getElementById('certification-modal').style.display = 'none';
+            currentOrderForCertification = null;
+        }
+
+        /**
+         * Completa la orden de trabajo y genera la certificación
+         */
+        async function completeWorkOrder() {
+            if (!currentOrderForCertification) {
+                alert('Error: No hay orden seleccionada para finalizar.');
+                return;
+            }
+
+            // Validar campos obligatorios
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const workDetails = document.getElementById('work-details').value;
+            const totalAmount = document.getElementById('total-amount').value;
+
+            if (!startDate || !endDate || !workDetails || !totalAmount) {
+                alert('Por favor, complete todos los campos obligatorios del formulario de certificación.');
+                return;
+            }
+
+            try {
+                // Crear objeto con datos de certificación
+                const certificationData = {
+                    ...currentOrderForCertification,
+                    'Estado': 'Finalizada',
+                    'Fecha de Finalización': getCurrentCaracasDate(),
+                    'Certificación': {
+                        'Número de Certificación': currentOrderForCertification['Orden de Trabajo'],
+                        'Fecha de Certificación': getCurrentCaracasDate(),
+                        'Empresa Contratista': document.getElementById('contractor-company').value,
+                        'Identificación Fiscal RIF': document.getElementById('contractor-rif').value,
+                        'Fecha de Inicio': formatDateToDDMMYYYY(startDate),
+                        'Fecha de Fin': formatDateToDDMMYYYY(endDate),
+                        'Detalle de Trabajos Realizados': workDetails,
+                        'Importe Total de la Obra': totalAmount,
+                        'Desviaciones y Justificación': document.getElementById('deviations').value
+                    }
+                };
+
+                // Mover la orden a la colección de órdenes finalizadas
+                await COMPLETED_ORDERS_COLLECTION.add(certificationData);
+                
+                // Eliminar la orden de la colección de órdenes en curso
+                await ORDERS_COLLECTION.doc(currentOrderForCertification.id).delete();
+                
+                // Actualizar arrays locales
+                workOrders = workOrders.filter(order => order.id !== currentOrderForCertification.id);
+                completedOrders.push(certificationData);
+                
+                // Generar PDF de certificación
+                await generateCertificationPDF(certificationData);
+                
+                // Cerrar modal y actualizar interfaces
+                closeCertificationModal();
+                renderOrdersTable();
+                renderCompletedOrdersTable();
+                
+                alert('✅ Orden finalizada exitosamente. Se ha generado la certificación en PDF.');
+                
+            } catch (error) {
+                console.error('Error al finalizar la orden:', error);
+                alert('Error al finalizar la orden: ' + error.message);
+            }
+        }
+
+        /**
+         * SOLUCIÓN ROBUSTA: Genera el PDF de certificación de obras CON FIRMAS A LOS LADOS
+         */
+        function generateCertificationPDF(data) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const certificationNumber = data['Orden de Trabajo'];
+                    const fileName = `Certificacion_Obra_${certificationNumber}.pdf`;
+                    
+                    console.log('Generando PDF de certificación para orden:', certificationNumber);
+                    console.log('Datos completos:', data);
+
+                    // Crear contenido HTML completo y autónomo CON FIRMAS A LOS LADOS
+                    const certificationContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <style>
+                                body { 
+                                    font-family: Arial, sans-serif; 
+                                    margin: 20px; 
+                                    color: #36454F; 
+                                    line-height: 1.4;
+                                    background: white;
+                                }
+                                h1 { 
+                                    color: #4682B4; 
+                                    text-align: center; 
+                                    border-bottom: 2px solid #4682B4; 
+                                    padding-bottom: 10px; 
+                                    margin-bottom: 20px; 
+                                }
+                                .section { 
+                                    margin-bottom: 25px; 
+                                    page-break-inside: avoid;
+                                }
+                                .section h3 { 
+                                    color: #4682B4; 
+                                    border-left: 4px solid #4682B4; 
+                                    padding-left: 8px; 
+                                    margin-top: 0;
+                                }
+                                table { 
+                                    width: 100%; 
+                                    border-collapse: collapse; 
+                                    margin-top: 10px;
+                                }
+                                td { 
+                                    padding: 10px; 
+                                    border: 1px solid #B0C4DE; 
+                                    vertical-align: top;
+                                }
+                                .label { 
+                                    font-weight: bold; 
+                                    background-color: #F0F8FF; 
+                                    width: 35%; 
+                                }
+                                .signature-section {
+                                    margin-top: 50px;
+                                    padding-top: 20px;
+                                    border-top: 2px dashed #B0C4DE;
+                                    width: 100%;
+                                }
+                                .signatures-container {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    width: 100%;
+                                }
+                                .signature-box {
+                                    width: 45%;
+                                    text-align: center;
+                                }
+                                .signature-line {
+                                    border-bottom: 1px solid #000;
+                                    margin-top: 60px;
+                                    height: 1px;
+                                    width: 100%;
+                                }
+                                @media print {
+                                    body { margin: 15mm; }
+                                    .section { page-break-inside: avoid; }
+                                    .signatures-container { display: flex; justify-content: space-between; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>Certificación de Obras Nro. ${certificationNumber}</h1>
+                            
+                            <div class="section">
+                                <h3>I. Datos de Certificación</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Número de Certificación:</td>
+                                        <td>${certificationNumber}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Fecha de la Certificación:</td>
+                                        <td>${data['Certificación']?.['Fecha de Certificación'] || data['Fecha de Finalización'] || getCurrentCaracasDate()}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="section">
+                                <h3>II. Identificación</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Empresa Contratista:</td>
+                                        <td>${data['Certificación']?.['Empresa Contratista'] || 'No especificada'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Identificación Fiscal RIF:</td>
+                                        <td>${data['Certificación']?.['Identificación Fiscal RIF'] || 'No especificado'}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="section">
+                                <h3>III. Información del Proyecto</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Corresponde Orden de trabajo N°:</td>
+                                        <td>${certificationNumber}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Fechas de Inicio:</td>
+                                        <td>${data['Certificación']?.['Fecha de Inicio'] || 'No especificada'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Fin de la Obra:</td>
+                                        <td>${data['Certificación']?.['Fecha de Fin'] || 'No especificada'}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="section">
+                                <h3>IV. Detalle de los trabajos realizados</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Detalle:</td>
+                                        <td style="white-space: pre-wrap; min-height: 100px;">${data['Certificación']?.['Detalle de Trabajos Realizados'] || 'No se especificaron detalles'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Importe total de la obra:</td>
+                                        <td>${data['Certificación']?.['Importe Total de la Obra'] || 'No especificado'}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="section">
+                                <h3>V. Desviaciones y Justificación</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Detalle de desviaciones:</td>
+                                        <td style="white-space: pre-wrap; min-height: 80px;">${data['Certificación']?.['Desviaciones y Justificación'] || 'No se registraron desviaciones'}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="signature-section">
+                                <div class="signatures-container">
+                                    <div class="signature-box">
+                                        <strong>Firma Jefe Técnico (Firma/Sello)</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                    <div class="signature-box">
+                                        <strong>Firma Gerente Técnico (Firma/Sello)</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+
+                    const printContainer = document.createElement('div');
+                    printContainer.innerHTML = certificationContent;
+                    document.body.appendChild(printContainer);
+
+                    const opt = {
+                        margin: 10,
+                        filename: fileName,
+                        image: { 
+                            type: 'jpeg', 
+                            quality: 0.98 
+                        },
+                        html2canvas: { 
+                            scale: 2,
+                            useCORS: true,
+                            logging: true,
+                            backgroundColor: '#FFFFFF',
+                            onclone: function(clonedDoc) {
+                                console.log('Documento clonado para PDF de certificación');
+                            }
+                        },
+                        jsPDF: { 
+                            unit: 'mm', 
+                            format: 'a4', 
+                            orientation: 'portrait',
+                            compress: true
+                        }
+                    };
+
+                    setTimeout(() => {
+                        html2pdf()
+                            .set(opt)
+                            .from(printContainer)
+                            .save()
+                            .then(() => {
+                                console.log('PDF de certificación generado exitosamente:', fileName);
+                                if (document.body.contains(printContainer)) {
+                                    document.body.removeChild(printContainer);
+                                }
+                                resolve();
+                            })
+                            .catch(error => {
+                                console.error('Error al generar PDF de certificación:', error);
+                                if (document.body.contains(printContainer)) {
+                                    document.body.removeChild(printContainer);
+                                }
+                                reject(error);
+                            });
+                    }, 1000);
+
+                } catch (error) {
+                    console.error('Error en generateCertificationPDF:', error);
+                    reject(error);
+                }
+            });
+        }
+
+        /**
+         * Renderiza la tabla de órdenes finalizadas CON FILTROS Y BOTÓN DE ELIMINAR
+         */
+        function renderCompletedOrdersTable() {
+            const tbody = document.getElementById('completed-orders-table').querySelector('tbody');
+            const noResultsDiv = document.getElementById('no-completed-results');
+            tbody.innerHTML = '';
+
+            // Aplicar filtros si existen
+            let filteredOrders = completedOrders;
+            if (completedActiveFilters.length > 0) {
+                filteredOrders = completedOrders.filter(order => {
+                    return completedActiveFilters.every(filter => {
+                        const fieldValue = order[filter.field] || '';
+                        const filterValue = filter.value;
+                        
+                        switch (filter.operator) {
+                            case 'contains':
+                                return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
+                            case 'equals':
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                            case 'startsWith':
+                                return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
+                            case 'endsWith':
+                                return fieldValue.toString().toLowerCase().endsWith(filterValue.toLowerCase());
+                            case 'range':
+                                const [min, max] = filterValue.split('-').map(v => parseFloat(v.trim()));
+                                const numValue = parseFloat(fieldValue);
+                                return !isNaN(numValue) && numValue >= min && numValue <= max;
+                            case 'greater':
+                                const greaterValue = parseFloat(fieldValue);
+                                const greaterFilter = parseFloat(filterValue);
+                                return !isNaN(greaterValue) && greaterValue > greaterFilter;
+                            case 'less':
+                                const lessValue = parseFloat(fieldValue);
+                                const lessFilter = parseFloat(filterValue);
+                                return !isNaN(lessValue) && lessValue < lessFilter;
+                            default:
+                                return true;
+                        }
+                    });
+                });
+            }
+
+            // Ordenar las órdenes finalizadas por número de OT de forma ascendente
+            const sortedOrders = [...filteredOrders].sort((a, b) => {
+                const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
+                const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
+                return otA - otB; // Orden ascendente
+            });
+
+            if (sortedOrders.length === 0) {
+                noResultsDiv.style.display = 'block';
+            } else {
+                noResultsDiv.style.display = 'none';
+            }
+
+            sortedOrders.forEach(order => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = order['Orden de Trabajo'];
+                row.insertCell().textContent = order['Título del Formulario'];
+                row.insertCell().textContent = order['Fecha Actual'] || 'N/A';
+                row.insertCell().textContent = order['Fecha de Finalización'] || 'N/A';
+                
+                const actionCell = row.insertCell();
+                
+                // Botón para descargar Orden de Trabajo
+                const orderPdfBtn = document.createElement('button');
+                orderPdfBtn.textContent = '📋 Orden';
+                orderPdfBtn.style.backgroundColor = '#87CEFA';
+                orderPdfBtn.style.color = 'white';
+                orderPdfBtn.onclick = () => generatePDF(order);
+                actionCell.appendChild(orderPdfBtn);
+                
+                // Botón para descargar Certificación
+                const certPdfBtn = document.createElement('button');
+                certPdfBtn.textContent = '📄 Certificación';
+                certPdfBtn.style.backgroundColor = '#77DD77';
+                certPdfBtn.style.color = 'white';
+                certPdfBtn.style.marginLeft = '5px';
+                certPdfBtn.onclick = () => generateCertificationPDF(order);
+                actionCell.appendChild(certPdfBtn);
+                
+                // NUEVO: Botón de Eliminar (Solo para Admin)
+                if (currentRole === 'admin') {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '🗑️ Eliminar';
+                    deleteBtn.style.backgroundColor = 'var(--color-error)';
+                    deleteBtn.style.color = 'white';
+                    deleteBtn.style.marginLeft = '5px';
+                    deleteBtn.onclick = () => deleteCompletedOrder(order.id, order['Orden de Trabajo']);
+                    actionCell.appendChild(deleteBtn);
+                }
+            });
+        }
+
+        // *** 9. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
         async function cleanDuplicateOrders() {
             if (currentRole !== 'admin') {
                 alert('Solo administradores pueden ejecutar esta función');
@@ -2048,7 +2831,7 @@
             }
         }
 
-        // *** 9. NUEVAS FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
+        // *** 10. FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
 
         /**
          * Exporta toda la base de datos a un archivo JSON
@@ -2060,9 +2843,13 @@
             }
 
             try {
-                // Obtener todas las órdenes
+                // Obtener todas las órdenes en curso
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const ordersData = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Obtener todas las órdenes finalizadas
+                const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
+                const completedData = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Obtener la configuración del sistema
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
@@ -2073,6 +2860,7 @@
                     timestamp: new Date().toISOString(),
                     exportedBy: firebase.auth().currentUser.email,
                     orders: ordersData,
+                    completedOrders: completedData,
                     config: configData
                 };
 
@@ -2091,7 +2879,7 @@
                 // Liberar el objeto URL
                 setTimeout(() => URL.revokeObjectURL(url), 100);
                 
-                alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes.`);
+                alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes en curso y ${completedData.length} órdenes finalizadas.`);
                 
             } catch (error) {
                 console.error('Error al exportar la base de datos:', error);
@@ -2127,7 +2915,7 @@
                 }
 
                 // Mostrar confirmación final
-                if (!confirm(`Se importarán ${importData.orders.length} órdenes y la configuración del sistema. ¿Continuar?`)) {
+                if (!confirm(`Se importarán ${importData.orders.length} órdenes en curso, ${importData.completedOrders?.length || 0} órdenes finalizadas y la configuración del sistema. ¿Continuar?`)) {
                     return;
                 }
 
@@ -2137,21 +2925,31 @@
                 // Importar configuración
                 await CONFIG_COLLECTION.doc("systemConfig").set(importData.config);
 
-                // Importar órdenes
+                // Importar órdenes en curso
                 let importedCount = 0;
                 for (const order of importData.orders) {
-                    // Remover el ID original para crear nuevos documentos
                     const { id, ...orderData } = order;
                     await ORDERS_COLLECTION.add(orderData);
                     importedCount++;
                 }
 
+                // Importar órdenes finalizadas
+                let importedCompletedCount = 0;
+                if (importData.completedOrders) {
+                    for (const order of importData.completedOrders) {
+                        const { id, ...orderData } = order;
+                        await COMPLETED_ORDERS_COLLECTION.add(orderData);
+                        importedCompletedCount++;
+                    }
+                }
+
                 // Recargar la aplicación
                 await loadInitialData();
                 renderOrdersTable();
+                renderCompletedOrdersTable();
                 renderWorkOrderForm();
 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes.`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso y ${importedCompletedCount} órdenes finalizadas.`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
@@ -2176,10 +2974,15 @@
          */
         async function clearDatabase() {
             try {
-                // Eliminar todas las órdenes
+                // Eliminar todas las órdenes en curso
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const deletePromises = ordersSnapshot.docs.map(doc => ORDERS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(deletePromises);
+
+                // Eliminar todas las órdenes finalizadas
+                const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
+                const completedDeletePromises = completedSnapshot.docs.map(doc => COMPLETED_ORDERS_COLLECTION.doc(doc.id).delete());
+                await Promise.all(completedDeletePromises);
 
                 // Eliminar configuración
                 await CONFIG_COLLECTION.doc("systemConfig").delete();
@@ -2191,7 +2994,7 @@
             }
         }
 
-        // *** 10. NUEVAS FUNCIONES DE FILTRADO DINÁMICO ***
+        // *** 11. FUNCIONES DE FILTRADO DINÁMICO ***
 
         /**
          * Inicializa los filtros dinámicos
@@ -2209,6 +3012,7 @@
             availableFields.add('Fecha Actual');
             availableFields.add('Usuario que Crea la Orden');
             availableFields.add('Tipo de Construcción Seleccionada');
+            availableFields.add('Estado');
             
             // Agregar campos dinámicos del formulario
             formStructure.forEach(section => {
@@ -2434,6 +3238,247 @@
                 filterTag.innerHTML = `
                     <strong>${filter.field}</strong> ${operatorText} "${filter.value}"
                     <span class="remove-filter" onclick="removeFilter(${index})">×</span>
+                `;
+                
+                activeFiltersList.appendChild(filterTag);
+            });
+        }
+
+        // *** 12. FUNCIONES DE FILTRADO PARA ÓRDENES FINALIZADAS ***
+
+        /**
+         * Inicializa los filtros para órdenes finalizadas
+         */
+        function initializeCompletedFilters() {
+            const filterFieldSelect = document.getElementById('completed-filter-field');
+            filterFieldSelect.innerHTML = '<option value="">Seleccionar campo...</option>';
+            
+            // Obtener todos los campos disponibles de las órdenes finalizadas
+            const availableFields = new Set();
+            
+            // Agregar campos básicos
+            availableFields.add('Orden de Trabajo');
+            availableFields.add('Título del Formulario');
+            availableFields.add('Fecha Actual');
+            availableFields.add('Fecha de Finalización');
+            availableFields.add('Usuario que Crea la Orden');
+            availableFields.add('Tipo de Construcción Seleccionada');
+            
+            // Agregar campos de certificación
+            availableFields.add('Certificación | Empresa Contratista');
+            availableFields.add('Certificación | Identificación Fiscal RIF');
+            availableFields.add('Certificación | Importe Total de la Obra');
+            
+            // Agregar campos dinámicos del formulario
+            formStructure.forEach(section => {
+                section.fields.forEach(field => {
+                    if (field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' && field.type !== 'user-auto-fill') {
+                        availableFields.add(field.label);
+                    }
+                });
+            });
+            
+            // Ordenar campos alfabéticamente y agregar al select
+            Array.from(availableFields).sort().forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                filterFieldSelect.appendChild(option);
+            });
+            
+            updateCompletedActiveFiltersDisplay();
+        }
+
+        /**
+         * Actualiza la interfaz de filtro para órdenes finalizadas
+         */
+        function updateCompletedFilterInput() {
+            const fieldSelect = document.getElementById('completed-filter-field');
+            const operatorSelect = document.getElementById('completed-filter-operator');
+            const valueContainer = document.getElementById('completed-filter-value-container');
+            
+            const selectedField = fieldSelect.value;
+            const selectedOperator = operatorSelect.value;
+            
+            // Limpiar contenedor
+            valueContainer.innerHTML = '';
+            
+            if (!selectedField) {
+                valueContainer.innerHTML = '<label for="completed-filter-value">Valor:</label><input type="text" id="completed-filter-value" placeholder="Seleccione un campo primero...">';
+                return;
+            }
+            
+            // Determinar el tipo de campo
+            let fieldType = 'text';
+            
+            // Buscar en campos dinámicos
+            formStructure.forEach(section => {
+                section.fields.forEach(field => {
+                    if (field.label === selectedField) {
+                        fieldType = field.type;
+                    }
+                });
+            });
+            
+            // Campos especiales
+            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT')) {
+                fieldType = 'number';
+            }
+            
+            if (selectedField === 'Fecha Actual' || selectedField === 'Fecha de Finalización') {
+                fieldType = 'date';
+            }
+            
+            const label = document.createElement('label');
+            label.htmlFor = 'completed-filter-value';
+            label.textContent = 'Valor:';
+            valueContainer.appendChild(label);
+            
+            if (selectedOperator === 'range' && (fieldType === 'number' || fieldType === 'date')) {
+                // Input de rango para números y fechas
+                const rangeDiv = document.createElement('div');
+                rangeDiv.className = 'range-inputs';
+                rangeDiv.innerHTML = `
+                    <input type="${fieldType === 'date' ? 'date' : 'number'}" id="completed-filter-value-min" placeholder="Mínimo">
+                    <span style="align-self: center;">a</span>
+                    <input type="${fieldType === 'date' ? 'date' : 'number'}" id="completed-filter-value-max" placeholder="Máximo">
+                `;
+                valueContainer.appendChild(rangeDiv);
+            } else {
+                // Input simple para otros casos
+                let inputType = 'text';
+                if (fieldType === 'number') inputType = 'number';
+                if (fieldType === 'date') inputType = 'date';
+                
+                const input = document.createElement('input');
+                input.type = inputType;
+                input.id = 'completed-filter-value';
+                
+                if (inputType === 'text') {
+                    input.placeholder = 'Texto a buscar...';
+                } else if (inputType === 'number') {
+                    input.placeholder = '0';
+                    input.step = fieldType === 'number' ? '0.01' : '1';
+                }
+                
+                valueContainer.appendChild(input);
+            }
+        }
+
+        /**
+         * Agrega un nuevo filtro para órdenes finalizadas
+         */
+        function addCompletedFilter() {
+            const fieldSelect = document.getElementById('completed-filter-field');
+            const operatorSelect = document.getElementById('completed-filter-operator');
+            const selectedField = fieldSelect.value;
+            const selectedOperator = operatorSelect.value;
+            
+            if (!selectedField) {
+                alert('Por favor, seleccione un campo para filtrar.');
+                return;
+            }
+            
+            let filterValue = '';
+            
+            if (selectedOperator === 'range') {
+                const minValue = document.getElementById('completed-filter-value-min').value;
+                const maxValue = document.getElementById('completed-filter-value-max').value;
+                
+                if (!minValue || !maxValue) {
+                    alert('Por favor, complete ambos valores para el rango.');
+                    return;
+                }
+                
+                filterValue = `${minValue}-${maxValue}`;
+            } else {
+                const valueInput = document.getElementById('completed-filter-value');
+                filterValue = valueInput.value.trim();
+                
+                if (!filterValue) {
+                    alert('Por favor, ingrese un valor para el filtro.');
+                    return;
+                }
+            }
+            
+            // Verificar si el filtro ya existe
+            const existingFilter = completedActiveFilters.find(f => 
+                f.field === selectedField && f.operator === selectedOperator && f.value === filterValue
+            );
+            
+            if (existingFilter) {
+                alert('Este filtro ya está activo.');
+                return;
+            }
+            
+            // Agregar el filtro
+            completedActiveFilters.push({
+                field: selectedField,
+                operator: selectedOperator,
+                value: filterValue
+            });
+            
+            // Actualizar la interfaz
+            updateCompletedActiveFiltersDisplay();
+            renderCompletedOrdersTable();
+            
+            // Limpiar los inputs
+            fieldSelect.value = '';
+            operatorSelect.value = 'contains';
+            updateCompletedFilterInput();
+        }
+
+        /**
+         * Elimina un filtro específico de órdenes finalizadas
+         */
+        function removeCompletedFilter(index) {
+            completedActiveFilters.splice(index, 1);
+            updateCompletedActiveFiltersDisplay();
+            renderCompletedOrdersTable();
+        }
+
+        /**
+         * Limpia todos los filtros de órdenes finalizadas
+         */
+        function clearAllCompletedFilters() {
+            completedActiveFilters = [];
+            updateCompletedActiveFiltersDisplay();
+            renderCompletedOrdersTable();
+        }
+
+        /**
+         * Actualiza la visualización de filtros activos para órdenes finalizadas
+         */
+        function updateCompletedActiveFiltersDisplay() {
+            const activeFiltersDiv = document.getElementById('completed-active-filters');
+            const activeFiltersList = document.getElementById('completed-active-filters-list');
+            
+            if (completedActiveFilters.length === 0) {
+                activeFiltersDiv.style.display = 'none';
+                return;
+            }
+            
+            activeFiltersDiv.style.display = 'block';
+            activeFiltersList.innerHTML = '';
+            
+            completedActiveFilters.forEach((filter, index) => {
+                const filterTag = document.createElement('span');
+                filterTag.className = 'active-filter-tag';
+                
+                let operatorText = '';
+                switch (filter.operator) {
+                    case 'contains': operatorText = 'contiene'; break;
+                    case 'equals': operatorText = 'es igual a'; break;
+                    case 'startsWith': operatorText = 'comienza con'; break;
+                    case 'endsWith': operatorText = 'termina con'; break;
+                    case 'range': operatorText = 'está entre'; break;
+                    case 'greater': operatorText = 'es mayor que'; break;
+                    case 'less': operatorText = 'es menor que'; break;
+                }
+                
+                filterTag.innerHTML = `
+                    <strong>${filter.field}</strong> ${operatorText} "${filter.value}"
+                    <span class="remove-filter" onclick="removeCompletedFilter(${index})">×</span>
                 `;
                 
                 activeFiltersList.appendChild(filterTag);
